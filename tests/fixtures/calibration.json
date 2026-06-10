@@ -1,0 +1,27 @@
+{
+  "task": "editlens-ternary",
+  "n_buckets": 4,
+  "label_names": [
+    "human",
+    "AI-generated",
+    "AI-edited"
+  ],
+  "bucket_descriptions": [
+    "none",
+    "light",
+    "moderate",
+    "heavy"
+  ],
+  "flip": false,
+  "score_min": 0.02446465753018856,
+  "score_max": 0.9999873638153076,
+  "h_thresh": 0.16216216216216217,
+  "ai_thresh": 0.994994994994995,
+  "binary_threshold": 0.42698240280151367,
+  "binary_fpr_target": 0.01,
+  "prompt_template": "You are an expert AI-text detector. Classify the passage below.\n0 = no AI involvement (entirely human-written)\n1 = lightly AI-edited\n2 = moderately AI-edited\n3 = heavily AI-edited or fully AI-generated\nRespond with a single digit (0, 1, 2, or 3) and nothing else.\n\nPassage:\n\"\"\"\n{text}\n\"\"\"\n\nAnswer: ",
+  "lowercase": true,
+  "max_length": 2048,
+  "decode": "scalar=(softmax(logits)\u00b7arange(n_buckets))/(n_buckets-1); oriented=-scalar if flip; scaled=clip((oriented-score_min)/(score_max-score_min),0,1); human if scaled<h_thresh, AI-generated if scaled>ai_thresh, else AI-edited",
+  "binary_decode": "optional single human-vs-AI call: AI if scaled>binary_threshold else human; binary_threshold is calibrated to binary_fpr_target false positives on a DIVERSE human set (in-domain val + non-native English) so the false-accusation rate holds for the hardest human group \u2014 tune it for your tolerated false-accusation rate"
+}

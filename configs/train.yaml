@@ -1,0 +1,56 @@
+# Greyscope training recipe. smoke / ablation are this recipe plus the override
+# presets in modal/train.py.
+
+model:
+  name: unsloth/Qwen3.5-4B-Base
+  max_seq_length: 2048
+  dtype: bfloat16
+
+lora:
+  r: 32
+  alpha: 32
+  dropout: 0.0
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+  use_gradient_checkpointing: unsloth
+
+data:
+  dataset: pangram/editlens_iclr
+  n_buckets: 4
+  bucket_lo_threshold: 0.03
+  bucket_hi_threshold: 0.15
+  min_words: 75
+  train_subset: null
+  val_subset: null
+  test_subset: null
+  seed: 42
+  apply_clean_text: true
+  label_field: cosine_score
+
+training:
+  output_dir: outputs/greyscope-v1
+  resume_from_checkpoint: true
+  num_train_epochs: 3
+  per_device_train_batch_size: 16
+  per_device_eval_batch_size: 16
+  gradient_accumulation_steps: 1
+  learning_rate: 2.0e-4
+  lr_scheduler_type: cosine
+  warmup_ratio: 0.05
+  max_grad_norm: 1.0
+  weight_decay: 0.01
+  optim: adamw_8bit
+  bf16: true
+  fp16: false
+  use_class_weights: true
+  eval_strategy: steps
+  eval_steps: 200
+  save_strategy: steps
+  save_steps: 200
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: eval_macro_f1
+  greater_is_better: true
+  early_stopping_patience: 5
+  seed: 42
+  logging_steps: 25
+  report_to: wandb

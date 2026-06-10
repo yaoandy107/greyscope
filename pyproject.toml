@@ -1,0 +1,70 @@
+[project]
+name = "greyscope"
+version = "0.1.0"
+description = "Greyscope: a Qwen3.5-4B LoRA detector estimating the degree of AI involvement in text (EditLens)"
+requires-python = ">=3.10"
+authors = [{ name = "yaoandy107" }]
+license = { text = "MIT" }
+readme = "README.md"
+
+# Inference runtime: CPU / Apple Silicon / GPU, no CUDA required.
+dependencies = [
+    "torch>=2.4.0",
+    "transformers>=5.5.0",
+    "huggingface_hub>=0.27.0",
+    "emoji",
+]
+
+[project.optional-dependencies]
+# Cross-platform analysis + evaluation deps (also what the test suite needs).
+eval = [
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "hydra-core>=1.3",
+]
+# Full training stack: CUDA GPU required (unsloth + bitsandbytes are CUDA-only).
+# Single source of truth for the Modal training image (installed via Image.uv_sync).
+# unsloth/unsloth_zoo are pinned so image rebuilds are deterministic (git HEAD moves
+# daily). flash-linear-attention + einops are Linux-only (Triton has no macOS wheel),
+# so they carry a platform marker and only resolve/install on the Modal builder.
+train = [
+    "greyscope[eval]",
+    "unsloth @ git+https://github.com/unslothai/unsloth.git@af6504f900fe611a056e66eec6ab74976eab7f34",
+    "unsloth_zoo==2026.5.4",
+    "peft>=0.14.0",
+    "bitsandbytes>=0.45.0",
+    "datasets>=3.2.0",
+    "accelerate>=1.3.0",
+    "wandb",
+    "trl>=0.13.0",
+    "evaluate",
+    "sentencepiece",
+    "protobuf",
+    "omegaconf>=2.3",
+    "flash-linear-attention; sys_platform == 'linux'",
+    "einops; sys_platform == 'linux'",
+]
+dev = [
+    "greyscope[eval]",
+    "pytest>=7",
+    "pytest-xdist",
+    "ruff",
+]
+modal = ["modal>=0.55"]
+
+[tool.setuptools.packages.find]
+include = ["greyscope*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
