@@ -110,17 +110,17 @@ Greyscope is evaluated against the open detectors from the [OpenPangram blog](ht
 | Fast-DetectGPT | 0.562 | 0.506 | 0.262 | 0.817 | 0.440 |
 | Binoculars | 0.540 | 0.478 | 0.227 | 0.796 | 0.411 |
 
-**RAID (binary, n=10,000)**
+**RAID (TPR at 5% FPR, n=10,000)**
 
-| Detector | Macro-F1 | FPR ↓ | FNR ↓ |
-|---|---|---|---|
-| **Greyscope** | 0.888 | 0.003 | 0.105 |
-| editlens-Llama-3.2-3B | 0.930 | 0.003 | 0.062 |
-| editlens-roberta-large | 0.736 | 0.007 | 0.288 |
-| Fast-DetectGPT | 0.941 | 0.078 | 0.028 |
-| Binoculars | 0.939 | 0.100 | 0.024 |
+| Detector | TPR@5%FPR ↑ | AUROC ↑ |
+|---|---|---|
+| **Greyscope** | 0.969 | 0.991 |
+| editlens-Llama-3.2-3B | 0.986 | 0.996 |
+| editlens-roberta-large | 0.852 | 0.960 |
+| Fast-DetectGPT | 0.961 | 0.989 |
+| Binoculars | 0.964 | 0.989 |
 
-editlens-Llama generalizes better here at the same 0.3% false-positive rate. Fast-DetectGPT and Binoculars score higher only by flagging far more humans (8–10% false positives).
+Scored with RAID's fixed-FPR protocol (per-domain, 5% FPR) on its non-adversarial 10k sample. The OpenPangram blog reports macro-F1, but that leaves detectors at different false-positive rates, so the scores aren't comparable; a detector can rank higher just by flagging more humans.
 
 **Human-Detectors (binary, n=300)**
 

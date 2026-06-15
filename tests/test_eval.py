@@ -1,6 +1,7 @@
 """Tests for the ternary evaluation port."""
 
 import numpy as np
+import pandas as pd
 
 from greyscope.eval import (
     LABEL_TO_ID,
@@ -11,6 +12,8 @@ from greyscope.eval import (
     minmax_scale,
     orient_scores,
     predict_ternary,
+    raid_protocol_eval,
+    raid_protocol_split,
     roc_auc,
     threshold_for_fpr,
     tpr_at_fpr,
@@ -158,3 +161,72 @@ def test_tpr_at_fpr_separable_and_single_class():
     assert tpr_at_fpr(y, scores, 0.05) == 1.0
     # human-only split → TPR undefined
     assert tpr_at_fpr(np.zeros(10, dtype=int), np.linspace(0, 1, 10), 0.05) is None
+
+
+def _raid_domain(domain: str, human: np.ndarray, machine: np.ndarray) -> pd.DataFrame:
+    """One domain's rows: label 0 = human, 1 = machine, score in `det_score`."""
+    return pd.DataFrame({
+        "domain": domain,
+        "label": [0] * len(human) + [1] * len(machine),
+        "det_score": np.concatenate([human, machine]),
+    })
+
+
+def test_raid_protocol_eval_per_domain_separable():
+    # Two domains on different score scales; each perfectly separable within itself.
+    df = pd.concat([
+        _raid_domain("a", np.linspace(0.0, 0.2, 100), np.linspace(0.8, 1.0, 100)),
+        _raid_domain("b", np.linspace(0.4, 0.6, 100), np.linspace(0.61, 0.8, 100)),
+    ], ignore_index=True)
+    r = raid_protocol_eval(df, "det_score", target_fpr=0.05)
+    assert r["n_domains"] == 2
+    assert r["tpr"] == 1.0           # every machine row caught in both domains
+    assert r["fpr"] <= 0.06          # threshold tuned to the 5% target per domain
+    assert r["auroc"] == 1.0
+    assert set(r["per_domain"]) == {"a", "b"}
+
+
+def test_raid_protocol_eval_orients_flipped_scores():
+    # Detector emits lower = more AI; orientation must flip it before tuning.
+    df = pd.concat([
+        _raid_domain("a", np.linspace(0.8, 1.0, 100), np.linspace(0.0, 0.2, 100)),
+        _raid_domain("b", np.linspace(0.8, 1.0, 100), np.linspace(0.0, 0.2, 100)),
+    ], ignore_index=True)
+    r = raid_protocol_eval(df, "det_score", target_fpr=0.05)
+    assert r["tpr"] == 1.0
+    assert r["auroc"] == 1.0
+
+
+def test_raid_protocol_eval_fpr_calibrates_to_target():
+    # No separation: at a 5% FPR threshold, TPR ~ FPR ~ target and AUROC ~ 0.5.
+    base = np.linspace(0.0, 1.0, 1000)
+    df = _raid_domain("a", base, base.copy())
+    r = raid_protocol_eval(df, "det_score", target_fpr=0.05)
+    assert abs(r["fpr"] - 0.05) <= 0.01
+    assert abs(r["tpr"] - 0.05) <= 0.02
+    assert abs(r["auroc"] - 0.5) <= 0.02
+
+
+def test_raid_protocol_eval_skips_single_class_domain():
+    df = pd.concat([
+        _raid_domain("a", np.linspace(0.0, 0.2, 50), np.linspace(0.8, 1.0, 50)),
+        pd.DataFrame({"domain": "humans_only", "label": [0] * 30,
+                      "det_score": np.linspace(0.0, 1.0, 30)}),
+    ], ignore_index=True)
+    r = raid_protocol_eval(df, "det_score", target_fpr=0.05)
+    assert r["n_domains"] == 1                  # the human-only domain is dropped
+    assert list(r["per_domain"]) == ["a"]
+
+
+def test_raid_protocol_eval_no_scorable_domain_returns_none():
+    df = pd.DataFrame({"domain": "a", "label": [0] * 10, "det_score": np.linspace(0, 1, 10)})
+    r = raid_protocol_eval(df, "det_score")
+    assert r["tpr"] is None and r["fpr"] is None and r["n_domains"] == 0
+
+
+def test_raid_protocol_split_scores_present_columns_only():
+    df = _raid_domain("a", np.linspace(0.0, 0.2, 50), np.linspace(0.8, 1.0, 50))
+    df = df.rename(columns={"det_score": "foo_score"})
+    out = raid_protocol_split(df, ["foo_score", "absent_score"])
+    assert set(out) == {"foo_score"}           # absent columns are skipped
+    assert out["foo_score"]["tpr"] == 1.0

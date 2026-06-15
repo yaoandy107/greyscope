@@ -167,11 +167,76 @@ def threshold_for_fpr(human_scores: np.ndarray, target_fpr: float) -> float:
 
 def tpr_at_fpr(y_true: np.ndarray, scores: np.ndarray, target_fpr: float) -> float | None:
     """Detection rate (TPR) at a threshold calibrated to `target_fpr` on this set's own
-    human rows, RAID's reporting protocol. None unless both classes are present."""
+    human rows. None unless both classes are present.
+
+    This pools all human rows. RAID's published protocol tunes the threshold *per domain*
+    and macro-averages — see `raid_protocol_eval`, which is the fair benchmark number.
+    """
     if (y_true == 0).sum() == 0 or (y_true == 1).sum() == 0:
         return None
     thr = threshold_for_fpr(scores[y_true == 0], target_fpr)
     return float((scores[y_true == 1] > thr).mean())
+
+
+def raid_protocol_eval(
+    df: pd.DataFrame, score_col: str, *, target_fpr: float = 0.05, domain_col: str = "domain"
+) -> dict:
+    """RAID's fair-comparison metric for one detector column.
+
+    RAID forbids reporting a detector at its own/default threshold: it tunes a *separate*
+    threshold per domain on that domain's human rows to a fixed FPR (5% by default), then
+    reports TPR (= accuracy on machine-generated text) at that threshold, and averages over
+    domains. Evaluating every detector at the same FPR is what makes the comparison fair —
+    F1 at one frozen threshold rewards whichever detector happens to flag more humans.
+
+    We use the closed-form FPR quantile (`threshold_for_fpr`), the exact equivalent of
+    RAID's iterative threshold search. Scores are oriented higher = more AI from the pooled
+    human/machine means. Our RAID subset carries no `attack` column, so each domain's
+    threshold is tuned on all of that domain's human rows (assumed non-adversarial); the
+    official leaderboard restricts to attack=="none" across the full adversarial set.
+
+    `df` needs a binary `label` column (0=human, 1=machine) and `domain_col`. Returns the
+    macro-over-domains TPR (the headline), the realized macro FPR (a calibration check, ~=
+    target), threshold-free AUROC, and a per-domain breakdown. `tpr` is None if no domain
+    has both classes.
+    """
+    y = df["label"].astype(int).to_numpy()
+    scores, _ = _orient_binary(df[score_col].to_numpy(dtype=float), y)
+    domains = df[domain_col].to_numpy()
+
+    per_domain: dict[str, dict] = {}
+    for d in pd.unique(domains):
+        mask = domains == d
+        yd, sd = y[mask], scores[mask]
+        if (yd == 0).sum() == 0 or (yd == 1).sum() == 0:
+            continue  # a domain needs both human and machine rows to tune + score
+        thr = threshold_for_fpr(sd[yd == 0], target_fpr)
+        per_domain[str(d)] = {
+            "tpr": float((sd[yd == 1] > thr).mean()),
+            "fpr": float((sd[yd == 0] > thr).mean()),
+            "threshold": float(thr),
+            "n": int(mask.sum()),
+        }
+
+    tprs = [v["tpr"] for v in per_domain.values()]
+    fprs = [v["fpr"] for v in per_domain.values()]
+    return {
+        "tpr": float(np.mean(tprs)) if tprs else None,
+        "fpr": float(np.mean(fprs)) if fprs else None,
+        "auroc": roc_auc(y, scores),
+        "target_fpr": target_fpr,
+        "n_domains": len(per_domain),
+        "n": int(len(df)),
+        "per_domain": per_domain,
+    }
+
+
+def raid_protocol_split(
+    df: pd.DataFrame, score_cols: Iterable[str], *, target_fpr: float = 0.05
+) -> dict:
+    """`raid_protocol_eval` for every detector column present in `df`."""
+    return {c: raid_protocol_eval(df, c, target_fpr=target_fpr)
+            for c in score_cols if c in df.columns}
 
 
 def eval_detector_ternary(val_df: pd.DataFrame, split_df: pd.DataFrame, col: str) -> dict:

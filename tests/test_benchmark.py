@@ -38,10 +38,12 @@ def _ternary_df(n_per_class: int = 8) -> pd.DataFrame:
 
 
 def _label_only_df(n_per_class: int = 8) -> pd.DataFrame:
+    """RAID-shaped: integer label + a domain column (both classes per domain), no text_type."""
     rows = []
     for i in range(n_per_class):
-        rows.append({"text": f"human sample {i}", "label": 0, "foo_score": 0.1})
-        rows.append({"text": f"ai sample {i}", "label": 1, "foo_score": 0.9})
+        dom = f"d{i % 2}"
+        rows.append({"text": f"human sample {i}", "label": 0, "domain": dom, "foo_score": 0.1})
+        rows.append({"text": f"ai sample {i}", "label": 1, "domain": dom, "foo_score": 0.9})
     return pd.DataFrame(rows)
 
 
@@ -101,11 +103,17 @@ def test_run_benchmark_suite(seeded_dirs):
     assert g["binary"]["auroc"] == 1.0
     assert "ternary" in g  # text_type present on this split
 
-    # raid_10k has only an integer `label` column → binary-only path.
+    # raid_10k has an integer `label` + `domain` → binary path, no ternary.
     raid = results["splits"]["raid_10k"]
     assert raid["ternary"] is False
     assert "ternary" not in raid["detectors"]["greyscope_score"]
     assert raid["detectors"]["greyscope_score"]["binary"]["macro_f1"] == 1.0
+
+    # A split with a domain column also gets RAID's per-domain TPR@FPR protocol.
+    rp = raid["raid_protocol"]["greyscope_score"]
+    assert rp["n_domains"] == 2 and rp["tpr"] == 1.0
+    # Splits without a domain column (e.g. test) do not.
+    assert "raid_protocol" not in results["splits"]["test"]
 
     # Per-split score CSVs are dumped for every split plus val.
     for name in ["val", *bench.BENCHMARK_SPLITS]:

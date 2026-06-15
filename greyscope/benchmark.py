@@ -104,7 +104,7 @@ def run_benchmark_suite(score_fn: ScoreFn, *, data_dir: str, scores_dir: str,
     Dumps per-split score CSVs into `scores_dir`; `on_split(results_so_far)` fires after
     each split for incremental persistence.
     """
-    from greyscope.eval import benchmark_split
+    from greyscope.eval import benchmark_split, raid_protocol_split
 
     def score_and_dump(name: str) -> pd.DataFrame:
         df = pd.read_csv(fetch_editlens_csv(name, data_dir))
@@ -123,11 +123,20 @@ def run_benchmark_suite(score_fn: ScoreFn, *, data_dir: str, scores_dir: str,
     for name in BENCHMARK_SPLITS:
         df = score_and_dump(name)
         ternary = "text_type" in df.columns
-        results["splits"][name] = {"n": int(len(df)), "ternary": ternary,
-                                   "detectors": benchmark_split(val, df, score_cols, ternary)}
-        g = results["splits"][name]["detectors"].get("greyscope_score", {})
+        split: dict = {"n": int(len(df)), "ternary": ternary,
+                       "detectors": benchmark_split(val, df, score_cols, ternary)}
+        # RAID's fair protocol (per-domain threshold @ fixed FPR → TPR) applies to any
+        # split with per-domain structure and both classes — currently just raid_10k.
+        if "domain" in df.columns and "label" in df.columns and df["label"].nunique() > 1:
+            split["raid_protocol"] = raid_protocol_split(df, score_cols)
+        results["splits"][name] = split
+
+        g = split["detectors"].get("greyscope_score", {})
         gb, gt = g.get("binary", {}), g.get("ternary")
         msg = f"[bench] {name:18s} greyscope binF1={gb.get('macro_f1')} fpr={gb.get('fpr')}"
+        gr = split.get("raid_protocol", {}).get("greyscope_score")
+        if gr and gr["tpr"] is not None:
+            msg += f"  RAID tpr@fpr{int(gr['target_fpr'] * 100)}={gr['tpr']:.4f} (fpr={gr['fpr']:.4f})"
         if gt:
             msg += (f"  terF1={gt['macro_f1']:.4f} acc={gt['accuracy']:.4f} "
                     f"(h{gt['f1_human']:.3f}/ai{gt['f1_ai_generated']:.3f}/ed{gt['f1_ai_edited']:.3f})")
