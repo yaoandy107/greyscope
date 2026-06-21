@@ -1,0 +1,19 @@
+# Mirror prompts (EN) — one task template per register, with paraphrase variants
+# (design §6: vary template phrasing so the AI side isn't keyed on one structure).
+# Slots: {topic}, {length_hint}. Per-language file (parallels edit/{lang}.yaml) so the
+# instruction is in the SAME language as the output (no cross-lingual prompting confound).
+creative:
+  - "Write an original piece of creative writing about {topic}. Aim for about {length_hint}."
+  - "Compose a short story or personal narrative on the theme of {topic}, roughly {length_hint} long."
+journalistic:
+  - "Write a news article reporting on {topic}. Aim for about {length_hint}."
+  - "Report on {topic} in the style of a news story, roughly {length_hint} long."
+formal:
+  - "Write an informative, encyclopedic passage about {topic}. Aim for about {length_hint}."
+  - "Explain {topic} in a clear, factual reference-style passage of about {length_hint}."
+reviews:
+  - "Write a review sharing your experience with {topic}. Aim for about {length_hint}."
+  - "Give your honest opinion of {topic} as a customer review, roughly {length_hint} long."
+casual:
+  - "Write a casual forum post sharing your thoughts on {topic}. Aim for about {length_hint}."
+  - "Post your take on {topic} the way you would on an online discussion board, about {length_hint}."

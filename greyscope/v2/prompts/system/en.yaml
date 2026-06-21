@@ -1,0 +1,16 @@
+# Prompt styles as data (design §6): the row records which as `prompt_id`; `family` is the eval
+# evasion slice (§11). humanizer text = vendored register/en.md; persona = inline. Add one = a row.
+- id: plain
+  family: plain
+  weight: 5
+- id: humanizer
+  family: humanizer
+  weight: 3
+- id: persona_casual
+  family: persona
+  weight: 1
+  text: "Write as an ordinary person posting online: first person, casual, a little uneven — the way someone actually types, not a polished article."
+- id: persona_concise
+  family: persona
+  weight: 1
+  text: "Write the way a busy person dashes something off: direct and plain, no preamble and no wrap-up."

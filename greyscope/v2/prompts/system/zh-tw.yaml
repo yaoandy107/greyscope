@@ -1,0 +1,16 @@
+# 提示風格以資料管理（design §6）。`prompt_id` 記錄使用的風格，`family` 供 eval 切分規避類別
+# （§11）。humanizer 讀 register/zh-tw.md，persona 為內嵌文字。新增一個 = 加一列。
+- id: plain
+  family: plain
+  weight: 5
+- id: humanizer
+  family: humanizer
+  weight: 3
+- id: persona_casual
+  family: persona
+  weight: 1
+  text: "用一般人在網路上發文的口吻來寫，第一人稱、隨性、不要太工整，就像真的有人在打字那樣。"
+- id: persona_concise
+  family: persona
+  weight: 1
+  text: "像很忙的人隨手寫一段那樣，直接講重點，不要開場白也不要結語。"

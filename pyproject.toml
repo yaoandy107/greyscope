@@ -52,6 +52,15 @@ dev = [
     "ruff",
 ]
 modal = ["modal>=0.55"]
+# v2 dataset build: human-corpus loading + generation/scoring over OpenRouter.
+# Local CPU + network only (no GPU); a separate seam from the training stack.
+v2 = [
+    "greyscope[eval]",
+    "datasets>=3.2.0",
+    "httpx",
+    "beautifulsoup4",  # PTT scraper (zh-TW, later increment)
+    "pyyaml",  # edit-prompt tables (generate.py)
+]
 
 [tool.setuptools.packages.find]
 include = ["greyscope*"]

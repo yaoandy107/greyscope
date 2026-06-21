@@ -1,0 +1,16 @@
+# プロンプトのスタイルをデータで持つ（design §6）。`prompt_id` に記録、`family` は eval の
+# evasion 切り分け（§11）。humanizer は register/ja.md を読み込み、persona はインライン。
+- id: plain
+  family: plain
+  weight: 5
+- id: humanizer
+  family: humanizer
+  weight: 3
+- id: persona_casual
+  family: persona
+  weight: 1
+  text: "ネットに書き込む普通の人になりきって書いてください。一人称で、くだけた口調で、整いすぎない、実際に人が打つような文章で。"
+- id: persona_concise
+  family: persona
+  weight: 1
+  text: "忙しい人がさっと書くように、前置きもまとめもなく、率直で素っ気ない文章で書いてください。"

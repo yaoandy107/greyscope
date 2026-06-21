@@ -1,0 +1,16 @@
+# Mirror prompts (ja) — localized so the instruction language matches the output (H1).
+creative:
+  - "{topic}をテーマに、オリジナルの創作（物語や随筆）を書いてください。{length_hint}程度でお願いします。"
+  - "{topic}について、短い物語または個人的な語りを{length_hint}程度で書いてください。"
+journalistic:
+  - "{topic}について報じるニュース記事を書いてください。{length_hint}程度でお願いします。"
+  - "{topic}を、ニュース記事の文体で{length_hint}程度で報じてください。"
+formal:
+  - "{topic}について、百科事典のような解説文を書いてください。{length_hint}程度でお願いします。"
+  - "{topic}を、明快で事実に基づいた説明文として{length_hint}程度でまとめてください。"
+reviews:
+  - "{topic}を使った経験についてのレビューを書いてください。{length_hint}程度でお願いします。"
+  - "{topic}についての率直な感想を、カスタマーレビューとして{length_hint}程度で書いてください。"
+casual:
+  - "{topic}についての考えを、掲示板に書き込むようなくだけた文章で{length_hint}程度で書いてください。"
+  - "{topic}についてのあなたの意見を、ネット掲示板に投稿する感じで{length_hint}程度で書いてください。"

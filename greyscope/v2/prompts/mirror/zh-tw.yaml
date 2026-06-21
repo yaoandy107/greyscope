@@ -1,0 +1,17 @@
+# Mirror prompts (zh-TW, 繁體中文台灣) — localized so the instruction language matches
+# the output (H1). The variety steering (_LANG_STEER) is still appended in the system prompt.
+creative:
+  - "請以「{topic}」為主題，寫一篇原創的創作（故事或抒情散文），約{length_hint}。"
+  - "請以「{topic}」為題，寫一篇短篇故事或個人記敘，長度約{length_hint}。"
+journalistic:
+  - "請就「{topic}」撰寫一篇新聞報導，約{length_hint}。"
+  - "請以新聞報導的文體報導「{topic}」，長度約{length_hint}。"
+formal:
+  - "請撰寫一段關於「{topic}」的百科式介紹文字，約{length_hint}。"
+  - "請以清楚、客觀的參考資料文體說明「{topic}」，長度約{length_hint}。"
+reviews:
+  - "請分享你使用「{topic}」的經驗，寫成一篇評論，約{length_hint}。"
+  - "請以顧客評論的形式，誠實寫下你對「{topic}」的看法，長度約{length_hint}。"
+casual:
+  - "請以在論壇發文的口吻，分享你對「{topic}」的想法，約{length_hint}。"
+  - "請像在網路討論區發文那樣，寫下你對「{topic}」的看法，約{length_hint}。"

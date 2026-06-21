@@ -1,0 +1,327 @@
+# Edit prompts (EN) — 9 categories × 9, ordered light→heavy (copyedit … rewrite) so the
+# edited class spans the cosine-magnitude continuum. `split` keeps prompts disjoint across
+# train/val/test (design §6/§14): per category 1–5 train, 6–7 val, 8–9 test.
+- id: en-copyedit-1
+  category: copyedit
+  split: train
+  prompt: "Fix only the spelling, punctuation, and grammar mistakes in the text below; change nothing else."
+- id: en-copyedit-2
+  category: copyedit
+  split: train
+  prompt: "Correct any typos and misspellings in the text below, leaving the wording otherwise untouched."
+- id: en-copyedit-3
+  category: copyedit
+  split: train
+  prompt: "Proofread the text below and fix mechanical errors in punctuation and capitalization only."
+- id: en-copyedit-4
+  category: copyedit
+  split: train
+  prompt: "Repair grammar mistakes — subject-verb agreement, tense, and articles — without altering word choice."
+- id: en-copyedit-5
+  category: copyedit
+  split: train
+  prompt: "Standardize the punctuation and spacing in the text below; do not rephrase anything."
+- id: en-copyedit-6
+  category: copyedit
+  split: val
+  prompt: "As a copy editor, fix only outright errors in spelling and grammar, preserving the author's exact wording."
+- id: en-copyedit-7
+  category: copyedit
+  split: val
+  prompt: "Clean up typos, doubled words, and stray punctuation in the text below, keeping every sentence as written."
+- id: en-copyedit-8
+  category: copyedit
+  split: test
+  prompt: "Correct spelling and grammatical errors in the text below; keep the original phrasing and meaning intact."
+- id: en-copyedit-9
+  category: copyedit
+  split: test
+  prompt: "Fix mechanical writing errors only (spelling, punctuation, capitalization) and leave the content unchanged."
+- id: en-polish-1
+  category: polish
+  split: train
+  prompt: "Lightly copyedit the text below for clarity and flow, keeping the wording as close to the original as possible."
+- id: en-polish-2
+  category: polish
+  split: train
+  prompt: "Smooth out awkward phrasing in the text below with minimal changes; preserve the author's voice."
+- id: en-polish-3
+  category: polish
+  split: train
+  prompt: "Make small improvements to readability — word order, transitions — without rewriting any sentence wholesale."
+- id: en-polish-4
+  category: polish
+  split: train
+  prompt: "Gently refine the text below so it reads more smoothly, changing as little as possible."
+- id: en-polish-5
+  category: polish
+  split: train
+  prompt: "Tidy up the text below for clarity, fixing clunky sentences but otherwise leaving it alone."
+- id: en-polish-6
+  category: polish
+  split: val
+  prompt: "As an editor doing a light pass, improve the flow and word choice in the text below without changing its structure."
+- id: en-polish-7
+  category: polish
+  split: val
+  prompt: "Polish the text below for readability with a light touch, keeping the original meaning and most of the wording."
+- id: en-polish-8
+  category: polish
+  split: test
+  prompt: "Improve the text below's clarity and rhythm with minimal edits; do not rewrite it."
+- id: en-polish-9
+  category: polish
+  split: test
+  prompt: "Make the text below read a little more naturally, adjusting only what is needed."
+- id: en-tone-1
+  category: tone
+  split: train
+  prompt: "Rewrite the text below in a more formal, polished tone without changing the facts."
+- id: en-tone-2
+  category: tone
+  split: train
+  prompt: "Rewrite the text below in a more casual, conversational tone while keeping the same information."
+- id: en-tone-3
+  category: tone
+  split: train
+  prompt: "Make the text below sound more professional and businesslike, leaving the content the same."
+- id: en-tone-4
+  category: tone
+  split: train
+  prompt: "Give the text below a warmer, friendlier tone without altering what it says."
+- id: en-tone-5
+  category: tone
+  split: train
+  prompt: "Rewrite the text below in a more neutral, objective register, removing any emotional or promotional language."
+- id: en-tone-6
+  category: tone
+  split: val
+  prompt: "Shift the text below to a more enthusiastic, upbeat tone while preserving every fact."
+- id: en-tone-7
+  category: tone
+  split: val
+  prompt: "Rewrite the text below in a more formal academic register, keeping the meaning unchanged."
+- id: en-tone-8
+  category: tone
+  split: test
+  prompt: "Make the text below sound more relaxed and informal, as if writing to a friend, without changing the facts."
+- id: en-tone-9
+  category: tone
+  split: test
+  prompt: "Adjust the tone of the text below to be more measured and understated, keeping the content intact."
+- id: en-simplify-1
+  category: simplify
+  split: train
+  prompt: "Rewrite the text below in plain, simple language that a general audience can easily follow."
+- id: en-simplify-2
+  category: simplify
+  split: train
+  prompt: "Simplify the text below: shorter sentences and everyday words, keeping the meaning."
+- id: en-simplify-3
+  category: simplify
+  split: train
+  prompt: "Rewrite the text below so a young teenager could understand it, without losing the key points."
+- id: en-simplify-4
+  category: simplify
+  split: train
+  prompt: "Replace jargon and complex phrasing in the text below with clear, everyday language."
+- id: en-simplify-5
+  category: simplify
+  split: train
+  prompt: "Make the text below easier to read by breaking up long sentences and cutting difficult vocabulary."
+- id: en-simplify-6
+  category: simplify
+  split: val
+  prompt: "Explain the text below in plainer terms, keeping all the important information."
+- id: en-simplify-7
+  category: simplify
+  split: val
+  prompt: "Rewrite the text below at a simpler reading level while preserving its meaning."
+- id: en-simplify-8
+  category: simplify
+  split: test
+  prompt: "Turn the text below into clear, straightforward prose anyone could understand."
+- id: en-simplify-9
+  category: simplify
+  split: test
+  prompt: "Simplify the wording and sentence structure of the text below without changing what it conveys."
+- id: en-paraphrase-1
+  category: paraphrase
+  split: train
+  prompt: "Rewrite the text below in your own words, keeping the same meaning and roughly the same length."
+- id: en-paraphrase-2
+  category: paraphrase
+  split: train
+  prompt: "Paraphrase the text below so it says the same thing using different wording."
+- id: en-paraphrase-3
+  category: paraphrase
+  split: train
+  prompt: "Restate the text below in fresh language without changing its meaning or length."
+- id: en-paraphrase-4
+  category: paraphrase
+  split: train
+  prompt: "Reword the text below thoroughly while preserving every point it makes."
+- id: en-paraphrase-5
+  category: paraphrase
+  split: train
+  prompt: "Express the same ideas as the text below using different sentences and vocabulary."
+- id: en-paraphrase-6
+  category: paraphrase
+  split: val
+  prompt: "Rewrite the text below from scratch in different words, keeping the content identical."
+- id: en-paraphrase-7
+  category: paraphrase
+  split: val
+  prompt: "Put the text below into your own words, matching its original length."
+- id: en-paraphrase-8
+  category: paraphrase
+  split: test
+  prompt: "Rephrase the text below completely while keeping the same meaning."
+- id: en-paraphrase-9
+  category: paraphrase
+  split: test
+  prompt: "Say what the text below says, but in entirely different wording."
+- id: en-condense-1
+  category: condense
+  split: train
+  prompt: "Tighten the text below: cut redundancy and wordiness while preserving every point."
+- id: en-condense-2
+  category: condense
+  split: train
+  prompt: "Condense the text below to about half its length, keeping all the key information."
+- id: en-condense-3
+  category: condense
+  split: train
+  prompt: "Trim the text below down to its essentials, removing filler and repetition."
+- id: en-condense-4
+  category: condense
+  split: train
+  prompt: "Shorten the text below as much as possible without losing any important content."
+- id: en-condense-5
+  category: condense
+  split: train
+  prompt: "Cut the text below to a tight, concise version that keeps the main ideas."
+- id: en-condense-6
+  category: condense
+  split: val
+  prompt: "Summarize the text below in a shorter form that retains every key point."
+- id: en-condense-7
+  category: condense
+  split: val
+  prompt: "Edit the text below for brevity, deleting anything that is not essential."
+- id: en-condense-8
+  category: condense
+  split: test
+  prompt: "Reduce the text below to its core message in noticeably fewer words."
+- id: en-condense-9
+  category: condense
+  split: test
+  prompt: "Make the text below more concise, cutting wordiness while keeping the meaning."
+- id: en-expand-1
+  category: expand
+  split: train
+  prompt: "Expand the text below with additional detail and explanation, keeping the original content intact."
+- id: en-expand-2
+  category: expand
+  split: train
+  prompt: "Develop the text below further, adding examples and elaboration to each point."
+- id: en-expand-3
+  category: expand
+  split: train
+  prompt: "Lengthen the text below by adding supporting detail and context, without contradicting anything."
+- id: en-expand-4
+  category: expand
+  split: train
+  prompt: "Flesh out the text below with more depth and specifics, preserving its original points."
+- id: en-expand-5
+  category: expand
+  split: train
+  prompt: "Add explanatory detail and transitions to the text below to make it more thorough."
+- id: en-expand-6
+  category: expand
+  split: val
+  prompt: "Expand each idea in the text below into a fuller treatment, keeping the original meaning."
+- id: en-expand-7
+  category: expand
+  split: val
+  prompt: "Enrich the text below with concrete examples and further explanation."
+- id: en-expand-8
+  category: expand
+  split: test
+  prompt: "Rewrite the text below as a longer, more detailed version that keeps all its original content."
+- id: en-expand-9
+  category: expand
+  split: test
+  prompt: "Build out the text below with added context and elaboration, staying faithful to its points."
+- id: en-restructure-1
+  category: restructure
+  split: train
+  prompt: "Reorganize and restructure the text below for better logical flow; you may merge or split sentences and paragraphs."
+- id: en-restructure-2
+  category: restructure
+  split: train
+  prompt: "Reorder the points in the text below into a clearer, more logical sequence."
+- id: en-restructure-3
+  category: restructure
+  split: train
+  prompt: "Restructure the text below so the most important information comes first."
+- id: en-restructure-4
+  category: restructure
+  split: train
+  prompt: "Rearrange the text below into well-organized paragraphs, keeping all the content."
+- id: en-restructure-5
+  category: restructure
+  split: train
+  prompt: "Reshape the flow of the text below, combining or splitting sentences as needed, without dropping any points."
+- id: en-restructure-6
+  category: restructure
+  split: val
+  prompt: "Reorganize the text below under a clearer structure, preserving everything it says."
+- id: en-restructure-7
+  category: restructure
+  split: val
+  prompt: "Change the order and grouping of ideas in the text below to improve coherence."
+- id: en-restructure-8
+  category: restructure
+  split: test
+  prompt: "Restructure the text below into a more logical progression, merging or splitting paragraphs where helpful."
+- id: en-restructure-9
+  category: restructure
+  split: test
+  prompt: "Rework the organization and sequencing of the text below while keeping its full content."
+- id: en-rewrite-1
+  category: rewrite
+  split: train
+  prompt: "Substantially rewrite the text below in a different style and voice while keeping the same topic and key information."
+- id: en-rewrite-2
+  category: rewrite
+  split: train
+  prompt: "Rewrite the text below as if a different author wrote it, preserving the main points but changing how everything is expressed."
+- id: en-rewrite-3
+  category: rewrite
+  split: train
+  prompt: "Completely rework the text below with a new voice and structure, keeping only its essential content."
+- id: en-rewrite-4
+  category: rewrite
+  split: train
+  prompt: "Rewrite the text below in a markedly different style, retaining the topic and the key facts."
+- id: en-rewrite-5
+  category: rewrite
+  split: train
+  prompt: "Reimagine the text below as a fresh piece of writing on the same subject, keeping its core information."
+- id: en-rewrite-6
+  category: rewrite
+  split: val
+  prompt: "Rewrite the text below from the ground up in a new voice, preserving what it is fundamentally about."
+- id: en-rewrite-7
+  category: rewrite
+  split: val
+  prompt: "Produce a substantially different version of the text below — new phrasing, new flow — that conveys the same key information."
+- id: en-rewrite-8
+  category: rewrite
+  split: test
+  prompt: "Rewrite the text below as a distinctly different take on the same material, keeping the important points."
+- id: en-rewrite-9
+  category: rewrite
+  split: test
+  prompt: "Recast the text below in an entirely new style and structure while preserving its topic and key facts."
