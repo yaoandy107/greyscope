@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -17,6 +18,7 @@ from pathlib import Path
 import yaml
 
 from greyscope.v2 import openrouter
+from greyscope.v2.corpora import count_cjk_chars
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 GENERATED_DIR = Path("data/v2/generated")
@@ -43,7 +45,6 @@ GENERATORS: list[dict] = [
     {"family": "anthropic", "slug": "anthropic/claude-sonnet-4.6", "flex": False, "reasoning": _TOGGLE_OFF_LEAN, "weight": {"en": 3, "ja": 3, "zh-tw": 3}},
     {"family": "xai", "slug": "x-ai/grok-4.3", "flex": False, "reasoning": _GROK, "weight": {"en": 3, "ja": 3, "zh-tw": 4}},
     {"family": "google-open", "slug": "google/gemma-4-31b-it", "flex": False, "reasoning": _TOGGLE, "weight": {"en": 1, "ja": 4, "zh-tw": 3}},
-    {"family": "nvidia", "slug": "nvidia/nemotron-3-ultra-550b-a55b:free", "flex": False, "reasoning": _TOGGLE, "weight": {"en": 1, "ja": 3, "zh-tw": 3}},  # free
     {"family": "alibaba", "slug": "qwen/qwen3.7-plus", "flex": False, "reasoning": _TOGGLE, "weight": {"en": 1, "ja": 4}},  # mainland: EN-allowed (bias rule is zh-TW-only), big EN app-channel
     {"family": "deepseek", "slug": "deepseek/deepseek-v4-pro", "flex": False, "reasoning": _ON_IS_HIGH, "weight": {"en": 1, "ja": 4}},  # flagship = consumer-default + the cheap app workhorse (pro, not the flash mini)
     {"family": "ling", "slug": "inclusionai/ling-2.6-flash", "flex": False, "reasoning": _NO_REASONING, "weight": {"ja": 3}},
@@ -53,10 +54,13 @@ GENERATORS: list[dict] = [
 
 MARKDOWN_MODES = ("default", "suppressed")  # config-sampling axis (§6)
 MAX_COMPLETION_TOKENS = 4096  # generous ceiling so finish_reason="length" flags a real runaway
+GEN_CONCURRENCY = 24  # I/O-bound (each call waits ~20s on the API) → many in-flight; retries absorb 429s
 
 # Edits that ship are derivatives → only PD/permissive sources; others get a build-only edit
 # (zh-TW scorer validation) tagged shippable_edit=False for assembly to drop (design §4/§13).
-SHIPPABLE_EDIT_SOURCES = {"editlens", "wikinews-ja", "tw-gov-news", "aozora"}
+# editlens BY-NC-SA, aozora PD/CC BY, wikinews-ja CC BY 4.0, tw-gov OGDL, open2ch Apache-2.0 →
+# all edited-OK. wiki40b (CC BY-SA), ptt (unlicensed), amazon-reviews-ja (Amazon) → mirror-only.
+SHIPPABLE_EDIT_SOURCES = {"editlens", "wikinews-ja", "tw-gov", "aozora", "open2ch"}
 # A novel can't be mirror-generated from its own text → human + edited only (design §4).
 MIRROR_INELIGIBLE_SOURCES = {"aozora"}
 
@@ -150,11 +154,15 @@ def load_edit_prompts(language: str) -> tuple[dict, ...]:
 
 # --- prompt rendering -------------------------------------------------------
 def _length_hint(record: dict) -> str:
-    text = record["text"]
-    if record["language"] == "en":
+    text, lang = record["text"], record["language"]
+    if lang == "en":
         words = max(50, round(len(text.split()) / 25) * 25)
         return f"{words} words"
-    chars = max(150, round(len(text) / 50) * 50)
+    # zh-TW sources carry more non-CJK noise (URLs/markup) and its models hit the number, so
+    # target the CJK count the gate measures → no overshoot; ja prose is clean and undershoots,
+    # so len(text) already lands it (pilot 2026-06-21: zh-tw 1.31× → ~1.0×, ja unchanged at 0.96×).
+    basis = count_cjk_chars(text) if lang == "zh-tw" else len(text)
+    chars = max(150, round(basis / 50) * 50)
     return f"{chars}字"
 
 
@@ -377,8 +385,21 @@ def run_request(req: GenRequest) -> dict:
 
 
 def generate(records: list[dict], out_path: Path) -> list[dict]:
-    """Run every request (cached) and write rows. NETWORKED — the pilot is the first spend."""
-    rows = [run_request(req) for req in build_requests(records)]
+    """Run every request (cached) and write rows. NETWORKED — the pilot is the first spend.
+    Requests are independent + I/O-bound → run concurrently; a terminal API failure is logged
+    and skipped (kept out of the batch), never allowed to abort the whole run."""
+    requests = build_requests(records)
+    slots: list[dict | None] = [None] * len(requests)
+    with ThreadPoolExecutor(max_workers=GEN_CONCURRENCY) as pool:
+        futures = {pool.submit(run_request, req): i for i, req in enumerate(requests)}
+        for fut in as_completed(futures):
+            i = futures[fut]
+            try:
+                slots[i] = fut.result()
+            except openrouter.OpenRouterError as exc:
+                req = requests[i]
+                print(f"  [skip] {req.kind} {req.generator['slug']} ({req.record['language']}): {str(exc)[:120]}")
+    rows = [r for r in slots if r is not None]
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as fh:
         for row in rows:

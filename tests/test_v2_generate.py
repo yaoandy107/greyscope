@@ -161,6 +161,13 @@ def test_edit_row_shippability_by_source():
     en_edit = gen.build_requests([en])[1]
     assert gen.edit_row(en, en_edit, result)["meta"]["shippable_edit"] is True
 
+    # tw-gov (OGDL) ships; amazon-reviews-ja (Amazon licensing) is mirror-only — both reconciled
+    # against the loaders' actual source names (design §4 routing).
+    tw = _rec(language="zh-tw", source="tw-gov", register="journalistic", source_id="A1")
+    assert gen.edit_row(tw, gen.build_requests([tw])[1], result)["meta"]["shippable_edit"] is True
+    az = _rec(language="ja", source="amazon-reviews-ja", register="reviews", source_id="r1")
+    assert gen.edit_row(az, gen.build_requests([az])[1], result)["meta"]["shippable_edit"] is False
+
 
 def test_strip_ai_header_removes_wrappers_keeps_content():
     strip = gen._strip_ai_header

@@ -1,5 +1,5 @@
 # zh-TW edit-prompt set (繁體中文．台灣). 9 categories × 9 prompts each = 81 entries.
-# `split` keeps prompts disjoint across train/val/test (design §6/§14): n=1-5 train, n=6-7 val, n=8-9 test.
+# `split` keeps prompts disjoint across train/val/test (design §6/§14): n=1-7 train, n=8 val, n=9 test.
 
 - id: zhtw-copyedit-1
   category: copyedit
@@ -23,15 +23,15 @@
   prompt: "下面這段文字可能有錯字或標點誤用，請只做這些字面上的修正，不要動到任何用詞。"
 - id: zhtw-copyedit-6
   category: copyedit
-  split: val
+  split: train
   prompt: "請當作最後一道校稿，僅修正以下文字的錯別字、標點與基本文法，內容與風格全部保持不變。"
 - id: zhtw-copyedit-7
   category: copyedit
-  split: val
+  split: train
   prompt: "請只把以下文字裡明顯寫錯的地方（錯字、標點、文法）改對，其他連一個詞都不要替換。"
 - id: zhtw-copyedit-8
   category: copyedit
-  split: test
+  split: val
   prompt: "請幫以下文字做最小幅度的訂正，只處理錯字與標點問題，語句結構維持原狀。"
 - id: zhtw-copyedit-9
   category: copyedit
@@ -60,15 +60,15 @@
   prompt: "下面這段文字大致沒問題，請只把讀起來拗口的句子稍作修順，其餘照舊。"
 - id: zhtw-polish-6
   category: polish
-  split: val
+  split: train
   prompt: "請輕輕潤飾以下文字，重點放在讓段落更順暢，用詞與語意都儘量貼近原文。"
 - id: zhtw-polish-7
   category: polish
-  split: val
+  split: train
   prompt: "請幫以下文字做溫和的修飾，挑掉冗贅或不順的措辭，但不要改變原本的口吻。"
 - id: zhtw-polish-8
   category: polish
-  split: test
+  split: val
   prompt: "請小幅潤色下面這段文字，讓它更易讀，原本的用字遣詞能留就留。"
 - id: zhtw-polish-9
   category: polish
@@ -97,15 +97,15 @@
   prompt: "請以較為客氣、委婉的語氣重寫下面這段文字，內容與重點完全保留。"
 - id: zhtw-tone-6
   category: tone
-  split: val
+  split: train
   prompt: "請把以下文字改成更專業、更沉穩的語氣，適合放在正式場合，但不要更動任何事實。"
 - id: zhtw-tone-7
   category: tone
-  split: val
+  split: train
   prompt: "以下這段文字偏正式，請把它改得更口語、更隨興，讀起來更像日常說話，意思不變。"
 - id: zhtw-tone-8
   category: tone
-  split: test
+  split: val
   prompt: "請將下面這段文字的語氣調整為更熱情、更有活力的風格，但所述事實一律照舊。"
 - id: zhtw-tone-9
   category: tone
@@ -134,15 +134,15 @@
   prompt: "請把以下文字化繁為簡，用簡短的句子和日常用語表達同樣的內容。"
 - id: zhtw-simplify-6
   category: simplify
-  split: val
+  split: train
   prompt: "下面這段文字請改寫成更口語、更直白的版本，把複雜的概念講得簡單清楚，重點全部保留。"
 - id: zhtw-simplify-7
   category: simplify
-  split: val
+  split: train
   prompt: "請降低以下文字的閱讀難度，盡量縮短句子、替換難字，但不要遺漏原本的資訊。"
 - id: zhtw-simplify-8
   category: simplify
-  split: test
+  split: val
   prompt: "請把以下文字改寫得更好懂，用最簡單的方式說明，讓沒有背景知識的人也能理解。"
 - id: zhtw-simplify-9
   category: simplify
@@ -171,15 +171,15 @@
   prompt: "請重新組織以下文字的字句，用全新的表達方式講出相同的意思，長度差不多。"
 - id: zhtw-paraphrase-6
   category: paraphrase
-  split: val
+  split: train
   prompt: "請把以下文字改寫成意思相同、但讀起來像另一個人寫的版本，長度維持原樣。"
 - id: zhtw-paraphrase-7
   category: paraphrase
-  split: val
+  split: train
   prompt: "請以換句話說的方式重寫下面這段文字，內容與重點不變，避免沿用原文的句子。"
 - id: zhtw-paraphrase-8
   category: paraphrase
-  split: test
+  split: val
   prompt: "請用不一樣的字詞與句構重述以下文字，傳達相同的訊息，篇幅大致相當。"
 - id: zhtw-paraphrase-9
   category: paraphrase
@@ -208,15 +208,15 @@
   prompt: "請把以下文字壓縮成更短的版本，剔除重複論點與贅字，意思完整保留。"
 - id: zhtw-condense-6
   category: condense
-  split: val
+  split: train
   prompt: "請將下面這段文字精簡約三成，刪去枝節與重複，但所有重點都要在。"
 - id: zhtw-condense-7
   category: condense
-  split: val
+  split: train
   prompt: "以下文字請去蕪存菁，把不影響理解的細節與冗句拿掉，整體更為精簡。"
 - id: zhtw-condense-8
   category: condense
-  split: test
+  split: val
   prompt: "請把以下文字縮短到一半左右，只保留最重要的訊息，其餘冗贅刪除。"
 - id: zhtw-condense-9
   category: condense
@@ -245,15 +245,15 @@
   prompt: "請把以下文字延伸寫得更詳盡，針對每個重點補充進一步的解釋與例子。"
 - id: zhtw-expand-6
   category: expand
-  split: val
+  split: train
   prompt: "請為下面這段文字加入更多說明與舉例，把篇幅大致擴充一倍，原有內容不變。"
 - id: zhtw-expand-7
   category: expand
-  split: val
+  split: train
   prompt: "以下文字請逐段補充細節，讓讀者更容易理解，既有的論點與資訊全部保留。"
 - id: zhtw-expand-8
   category: expand
-  split: test
+  split: val
   prompt: "請把以下文字擴寫得更豐富，補上相關脈絡與實例，但不要更動原本的主張。"
 - id: zhtw-expand-9
   category: expand
@@ -282,15 +282,15 @@
   prompt: "請把以下文字依重要性重新排序，先講重點再講細節，可重新切分段落。"
 - id: zhtw-restructure-6
   category: restructure
-  split: val
+  split: train
   prompt: "請重組下面這段文字的結構，將分散的相關論點整併成連貫的段落，事實維持不變。"
 - id: zhtw-restructure-7
   category: restructure
-  split: val
+  split: train
   prompt: "以下文字請調換段落順序、合併重複的主題，使前後邏輯銜接更順，內容照舊。"
 - id: zhtw-restructure-8
   category: restructure
-  split: test
+  split: val
   prompt: "請把以下文字重新分段並調整鋪陳順序，讓論述由淺入深，重點全部保留。"
 - id: zhtw-restructure-9
   category: restructure
@@ -319,15 +319,15 @@
   prompt: "請把以下文字改寫成完全不同的文章風格，從用字到語感都重新打造，主題照舊。"
 - id: zhtw-rewrite-6
   category: rewrite
-  split: val
+  split: train
   prompt: "請以說故事的方式大幅重寫下面這段文字，文體口吻全面更換，重點訊息保留。"
 - id: zhtw-rewrite-7
   category: rewrite
-  split: val
+  split: train
   prompt: "以下文字請整篇重寫成更生動、更有個人風格的版本，內容主旨維持一致。"
 - id: zhtw-rewrite-8
   category: rewrite
-  split: test
+  split: val
   prompt: "請把以下文字大刀闊斧地重寫，改變文體、結構與語氣，但保留原本要表達的核心。"
 - id: zhtw-rewrite-9
   category: rewrite

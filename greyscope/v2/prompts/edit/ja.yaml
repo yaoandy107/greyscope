@@ -1,5 +1,5 @@
 # ja edit-prompt set — 9 categories (copyedit, polish, tone, simplify, paraphrase, condense, expand, restructure, rewrite) × 9 prompts each = 81.
-# `split` keeps prompts disjoint across train/val/test (n=1..5 train, n=6,7 val, n=8,9 test); see design §6/§14.
+# `split` keeps prompts disjoint across train/val/test (n=1-7 train, n=8 val, n=9 test); see design §6/§14.
 
 # --- copyedit -------------------------------------------------------------
 - id: ja-copyedit-1
@@ -24,15 +24,15 @@
   prompt: "以下の文の文法的に正しくない箇所を最小限の修正で直してください。意味や言い回しは変更しないでください。"
 - id: ja-copyedit-6
   category: copyedit
-  split: val
+  split: train
   prompt: "以下の文章を一字一句チェックし、誤変換・脱字・余分な空白を取り除いてください。それ以外には手を加えないでください。"
 - id: ja-copyedit-7
   category: copyedit
-  split: val
+  split: train
   prompt: "以下の文章にある主語と述語のねじれや、活用の誤りだけを正してください。表現自体は元のままにしてください。"
 - id: ja-copyedit-8
   category: copyedit
-  split: test
+  split: val
   prompt: "編集者として、以下の文章の明白な誤記と句読点の誤用のみを修正し、文体や語彙には触れないでください。"
 - id: ja-copyedit-9
   category: copyedit
@@ -62,15 +62,15 @@
   prompt: "以下の文章のリズムを整え、不自然に長い一文があれば軽く調整してください。語り口や語彙はほぼそのままにしてください。"
 - id: ja-polish-6
   category: polish
-  split: val
+  split: train
   prompt: "以下の文章を、意味を変えずに、より洗練された自然な日本語になるよう控えめに磨いてください。"
 - id: ja-polish-7
   category: polish
-  split: val
+  split: train
   prompt: "以下の文章のたどたどしい接続や語順だけをそっと直し、もとの雰囲気は残してください。"
 - id: ja-polish-8
   category: polish
-  split: test
+  split: val
   prompt: "以下の文章の読み心地を良くするため、表現を大きく変えない範囲で言葉の選び方をわずかに整えてください。"
 - id: ja-polish-9
   category: polish
@@ -100,15 +100,15 @@
   prompt: "編集者として、以下の文章を温かく親しみやすいトーンに調整してください。情報の正確さは保ってください。"
 - id: ja-tone-6
   category: tone
-  split: val
+  split: train
   prompt: "以下の文章を、社外向けの礼儀正しく改まった敬語表現に整え直してください。意味は変えないでください。"
 - id: ja-tone-7
   category: tone
-  split: val
+  split: train
   prompt: "以下の文章を、感情を抑えた中立的で客観的な報告調に書き換えてください。事実関係は一切変えないでください。"
 - id: ja-tone-8
   category: tone
-  split: test
+  split: val
   prompt: "以下の文章を、SNSの投稿のように軽快でくだけた語り口に変えてください。内容そのものは保ってください。"
 - id: ja-tone-9
   category: tone
@@ -138,15 +138,15 @@
   prompt: "編集者として、以下の文章の回りくどい言い回しをほどき、まっすぐで平易な表現にしてください。意味は保ってください。"
 - id: ja-simplify-6
   category: simplify
-  split: val
+  split: train
   prompt: "以下の文章を、初めてこの話題に触れる人にもわかるよう、やさしく噛み砕いて言い直してください。"
 - id: ja-simplify-7
   category: simplify
-  split: val
+  split: train
   prompt: "以下の文章から堅苦しさを取り除き、誰でもすっと理解できる平易な日本語にしてください。情報は減らさないでください。"
 - id: ja-simplify-8
   category: simplify
-  split: test
+  split: val
   prompt: "以下の文章を、専門用語はそのまま残しつつ、その周りの説明だけをやさしく言い換えてわかりやすくしてください。"
 - id: ja-simplify-9
   category: simplify
@@ -176,15 +176,15 @@
   prompt: "編集者として、以下の文章を自分の言葉で言い直してください。事実・主張・分量はそのまま維持してください。"
 - id: ja-paraphrase-6
   category: paraphrase
-  split: val
+  split: train
   prompt: "以下の文章を、固有名詞や数字はそのままに、それ以外の表現を言い換えてください。長さはほぼ同じにしてください。"
 - id: ja-paraphrase-7
   category: paraphrase
-  split: val
+  split: train
   prompt: "以下の文章を、文の順序は保ったまま、各文を別の言い回しに書き換えてください。意味は変えないでください。"
 - id: ja-paraphrase-8
   category: paraphrase
-  split: test
+  split: val
   prompt: "以下の文章を、語り口や一人称は変えずに、語彙だけを入れ替えて言い換えてください。長さもほぼ同じに保ってください。"
 - id: ja-paraphrase-9
   category: paraphrase
@@ -214,15 +214,15 @@
   prompt: "以下の文章を、各文をできるだけ短くして全体をコンパクトにまとめてください。重要な情報はすべて残してください。"
 - id: ja-condense-6
   category: condense
-  split: val
+  split: train
   prompt: "以下の文章を3割ほど短くしてください。なくても意味が通る言葉から削り、要点はそのまま保ってください。"
 - id: ja-condense-7
   category: condense
-  split: val
+  split: train
   prompt: "以下の文章を、内容を一つも落とさずに、できる限り少ない語数で言い直してください。"
 - id: ja-condense-8
   category: condense
-  split: test
+  split: val
   prompt: "以下の文章を、専門用語や固有名詞は残しつつ、説明の冗長な部分だけを削って短くしてください。"
 - id: ja-condense-9
   category: condense
@@ -252,15 +252,15 @@
   prompt: "以下の各文に、それを裏づける詳しい描写や具体的な情報を付け足してください。もとの趣旨は保ってください。"
 - id: ja-expand-6
   category: expand
-  split: val
+  split: train
   prompt: "以下の文章を、移行の文や言い換えを足してより読みやすく展開してください。新しい事実は加えないでください。"
 - id: ja-expand-7
   category: expand
-  split: val
+  split: train
   prompt: "以下の文章の要点ごとに、その意味や影響を一文ずつ補って詳しくしてください。元の論旨は変えないでください。"
 - id: ja-expand-8
   category: expand
-  split: test
+  split: val
   prompt: "以下の文章を、一人称や語り口はそのままに、情景や感情の描写を加えてふくらませてください。"
 - id: ja-expand-9
   category: expand
@@ -290,15 +290,15 @@
   prompt: "編集者として、以下の文章を時系列に沿った順序に並べ替えてください。事実は変えず、つなぎだけ補ってください。"
 - id: ja-restructure-6
   category: restructure
-  split: val
+  split: train
   prompt: "以下の文章の要点を整理し、関連する内容をまとめて、全体の構成を立て直してください。意味は保ってください。"
 - id: ja-restructure-7
   category: restructure
-  split: val
+  split: train
   prompt: "以下の文章を、導入・本論・まとめの流れになるよう組み替えてください。情報の取捨はせず、順序だけを変えてください。"
 - id: ja-restructure-8
   category: restructure
-  split: test
+  split: val
   prompt: "以下の文章の中で最も重要な主張を冒頭に持ってきて、残りをそれを支える形に並べ替えてください。内容は変えないでください。"
 - id: ja-restructure-9
   category: restructure
@@ -328,15 +328,15 @@
   prompt: "以下の文章を、語りかけるブログ記事のような親しみやすい文章に作り変えてください。中身は変えないでください。"
 - id: ja-rewrite-6
   category: rewrite
-  split: val
+  split: train
   prompt: "以下の文章を、物語のように情景の浮かぶ描写的な文章へと大胆に書き直してください。扱う事柄は保ってください。"
 - id: ja-rewrite-7
   category: rewrite
-  split: val
+  split: train
   prompt: "以下の文章を、説得力のある主張文として一から構成し直してください。論点は同じまま、文体は刷新してください。"
 - id: ja-rewrite-8
   category: rewrite
-  split: test
+  split: val
   prompt: "以下の文章を、講演の台本のように聴き手に語りかける口調へ全面的に書き換えてください。要点は変えないでください。"
 - id: ja-rewrite-9
   category: rewrite
