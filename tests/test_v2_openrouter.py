@@ -59,6 +59,7 @@ def test_chat_returns_cached_without_network(monkeypatch):
         "model": "openai/gpt-5.5",
         "messages": [{"role": "user", "content": "hi"}],
         "service_tier": "flex",
+        "usage": {"include": True},  # chat() adds this → part of the cache key
     }
     path = _chat_cache_path(body)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -88,6 +89,39 @@ def test_chat_calls_api_on_miss_then_serves_from_cache(monkeypatch):
     assert calls == ["/chat/completions"]  # the second call never paid (cache)
 
 
+def test_chat_requests_actual_cost(monkeypatch):
+    sent = {}
+
+    def _fake_post(client, path, body, max_retries):
+        sent.update(body)
+        return _RAW
+
+    monkeypatch.setattr(openrouter, "_post_with_retry", _fake_post)
+    chat([{"role": "user", "content": "hi"}], model="m")
+    assert sent["usage"] == {"include": True}  # asks OpenRouter to return the real billed cost
+
+
+def test_cost_of_reads_usage_cost():
+    assert openrouter.cost_of({"cost": 0.0123}) == 0.0123
+    assert openrouter.cost_of({"prompt_tokens": 5}) == 0.0  # no cost field → 0
+    assert openrouter.cost_of(None) == 0.0
+
+
+def test_embed_records_and_sums_actual_cost(tmp_path, monkeypatch):
+    monkeypatch.setattr(openrouter, "EMBED_CACHE_DIR", tmp_path / "emb")
+
+    def _fake_embed_batch(client, model, task_type, inputs, max_retries):
+        return [[0.1, 0.2] for _ in inputs], 0.04  # $0.04 for the whole batch
+
+    monkeypatch.setattr(openrouter, "_embed_batch", _fake_embed_batch)
+    texts = ["alpha", "beta"]
+    assert len(openrouter.embed(texts)) == 2
+    assert abs(openrouter.embedding_cost(texts) - 0.04) < 1e-9  # per-text split sums back to the batch cost
+
+    openrouter.embed(texts)  # re-run: served from cache, no re-charge
+    assert abs(openrouter.embedding_cost(texts) - 0.04) < 1e-9
+
+
 def test_chat_does_not_cache_truncated_response(monkeypatch):
     calls = []
     truncated = {"model": "m", "choices": [{"message": {"content": "cut"}, "finish_reason": "length"}]}
@@ -101,3 +135,54 @@ def test_chat_does_not_cache_truncated_response(monkeypatch):
     chat(msgs, model="m")
     chat(msgs, model="m")
     assert len(calls) == 2  # truncated reply not cached → re-fetched on the next run
+
+
+def test_post_with_retry_retries_non_json_body(monkeypatch):
+    monkeypatch.setattr(openrouter.time, "sleep", lambda *a, **k: None)
+    monkeypatch.setattr(openrouter, "_api_key", lambda: "k")
+
+    class _Resp:
+        status_code = 200
+        content = b"\n" * 10
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            if self._payload is None:  # empty/garbled 200 body
+                raise json.JSONDecodeError("Expecting value", "", 0)
+            return self._payload
+
+    seq = [_Resp(None), _Resp(_RAW)]  # first non-JSON, then good
+
+    class _Client:
+        def post(self, url, headers, json):
+            return seq.pop(0)
+
+    out = openrouter._post_with_retry(_Client(), "/chat/completions", {"model": "m"}, max_retries=3)
+    assert out == _RAW and not seq  # retried past the bad body
+
+
+def test_post_with_retry_raises_clearly_on_persistent_non_json(monkeypatch):
+    monkeypatch.setattr(openrouter.time, "sleep", lambda *a, **k: None)
+    monkeypatch.setattr(openrouter, "_api_key", lambda: "k")
+
+    class _Resp:
+        status_code = 200
+        content = b"   "
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            raise json.JSONDecodeError("Expecting value", "", 0)
+
+    class _Client:
+        def post(self, url, headers, json):
+            return _Resp()
+
+    with pytest.raises(openrouter.OpenRouterError, match="non-JSON"):
+        openrouter._post_with_retry(_Client(), "/chat/completions", {"model": "m"}, max_retries=2)

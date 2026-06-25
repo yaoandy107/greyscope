@@ -19,6 +19,7 @@ import random
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Iterable
 
 import httpx
 
@@ -95,18 +96,38 @@ def embed(
         with httpx.Client(timeout=timeout) as client:
             for start in range(0, len(pending), batch_size):
                 batch = pending[start : start + batch_size]
-                returned = _embed_batch(
+                returned, batch_cost = _embed_batch(
                     client, model, task_type, [t for _, t in batch], max_retries
                 )
+                per_text = batch_cost / len(batch) if batch_cost else 0.0  # split evenly → exact in aggregate
                 for (i, text), vector in zip(batch, returned):
                     vectors[i] = vector
                     _cache_path(model, task_type, text).write_text(
-                        json.dumps({"embedding": vector})
+                        json.dumps({"embedding": vector, "cost": per_text})
                     )
 
     if any(v is None for v in vectors):  # unreachable; guards a silent misalign
         raise OpenRouterError("internal error: some embeddings were not filled")
     return vectors  # type: ignore[return-value]
+
+
+def cost_of(usage: dict | None) -> float:
+    """The actual USD billed for a chat call, read from OpenRouter's `usage.cost`
+    (present because `chat()` sends `usage:{include:true}`). 0.0 if absent — e.g. a
+    provider that didn't report it, caught by the build report's list-price cross-check."""
+    return float((usage or {}).get("cost") or 0.0)
+
+
+def embedding_cost(texts: Iterable[str], *, model: str = EMBED_MODEL, task_type: str | None = None) -> float:
+    """Sum the actual embedding cost recorded in cache for the (deduplicated) `texts` — each was
+    embedded once and stored its share of its batch's `usage.cost`, so the sum is exact. 0.0 for
+    any text embedded before cost tracking (pilot-era cache)."""
+    total = 0.0
+    for text in set(texts):
+        path = _cache_path(model, task_type, text)
+        if path.exists():
+            total += float(json.loads(path.read_text()).get("cost") or 0.0)
+    return total
 
 
 def _auth_headers() -> dict:
@@ -134,10 +155,14 @@ def _post_with_retry(
         else:
             if response.status_code not in _RETRYABLE_STATUS:
                 response.raise_for_status()
-                return response.json()
-            last_error = OpenRouterError(
-                f"HTTP {response.status_code}: {response.text[:200]}"
-            )
+                try:
+                    return response.json()
+                except json.JSONDecodeError as exc:  # empty/garbled 200 body → retry like a transient failure
+                    last_error = OpenRouterError(f"non-JSON body ({len(response.content)}B): {exc}")
+            else:
+                last_error = OpenRouterError(
+                    f"HTTP {response.status_code}: {response.text[:200]}"
+                )
         if attempt < max_retries - 1:
             time.sleep(delay + random.uniform(0, delay * 0.25))  # backoff + jitter
             delay *= 2
@@ -153,15 +178,17 @@ def _embed_batch(
     task_type: str | None,
     inputs: list[str],
     max_retries: int,
-) -> list[list[float]]:
-    body: dict = {"model": model, "input": inputs, "encoding_format": "float"}
+) -> tuple[list[list[float]], float]:
+    """Returns (vectors, actual_batch_cost). Cost is OpenRouter's `usage.cost` (0.0 if unreported)."""
+    body: dict = {"model": model, "input": inputs, "encoding_format": "float", "usage": {"include": True}}
     if task_type:
         body["task_type"] = task_type  # best-effort passthrough to the provider
     raw = _post_with_retry(client, "/embeddings", body, max_retries)
     rows = sorted(raw["data"], key=lambda d: d["index"])
     if len(rows) != len(inputs):  # provider returned a short batch — fail loudly
         raise OpenRouterError(f"embeddings: requested {len(inputs)}, got {len(rows)}")
-    return [row["embedding"] for row in rows]
+    cost = float((raw.get("usage") or {}).get("cost") or 0.0)
+    return [row["embedding"] for row in rows], cost
 
 
 @dataclass
@@ -224,6 +251,7 @@ def chat(
         body["max_completion_tokens"] = max_completion_tokens
     if extra:
         body.update(extra)
+    body["usage"] = {"include": True}  # OpenRouter returns the actual billed cost in usage.cost (§5)
 
     path = _chat_cache_path(body)
     if path.exists():
