@@ -140,9 +140,9 @@ modal run modal/release.py::export_and_validate     # merge LoRA → deploy-read
 
 ## Roadmap
 
-- [x] English (v1)
-- [ ] Traditional Chinese and Japanese (v2)
-- [ ] Training data expanded with newer generator models (v2)
+- [x] English model (v1)
+- [x] v2 dataset — trilingual (English / Japanese / Traditional Chinese), newer generator models
+- [ ] v2 model — train and release the trilingual detector
 
 ## License
 
