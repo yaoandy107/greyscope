@@ -1,20 +1,23 @@
-"""Full v2 build driver (design §5/§14): load → generate → gate → score → assemble.
+"""Full v2 build driver: load → generate → gate → score → assemble.
 
 The asymmetric one-shot build — humans are the free FPR base (~12–15k/lang), the AI side is
-budget-capped (~1.5k EN / 6.3k ja / 6.3k zh-TW, design §5). Scales the pilot to ALL sources and
+budget-capped (~1.5k EN / 6.3k ja / 6.3k zh-TW). Runs ALL sources and
 wires `assemble`. Every response is cached → re-runs are free and resumable.
 
-SPENDS MONEY. Makes NO calls on import. Three modes:
+SPENDS MONEY with --smoke/--full. Makes NO calls on import. Modes:
 
-    python scripts/v2_build.py             # dry run: print the plan + human yields, no spend
-    python scripts/v2_build.py --smoke     # tiny NEW-source validation through gen→gate→score (~$0.20)
-    python scripts/v2_build.py --full       # the full build (~$50, the locked one-shot target)
+    python scripts/v2_build.py                  # dry run: print the plan + human yields, no spend
+    python scripts/v2_build.py --smoke          # tiny NEW-source validation through gen→gate→score (~$0.20)
+    python scripts/v2_build.py --full           # the full build (~$50, the locked one-shot target)
+    python scripts/v2_build.py --topup-en N      # additively generate N NEW EN docs + append (SPENDS)
+    python scripts/v2_build.py --assemble-only  # re-gate/score/assemble from cached generations (no spend)
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import statistics
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -24,11 +27,21 @@ from greyscope.v2 import assemble, corpora, decontam, gates, generate, openroute
 
 REPORT_PATH = Path("data/v2/reports/build.md")
 
-# Per-language human source caps → the register-balanced ~12–15k/lang FPR base (design §4/§5).
+# Per-language human source caps → the register-balanced ~12–15k/lang FPR base.
 # Each entry: (source, loader(limit), cap). Slow scraped sources (wikinews/tw-gov/ptt) are capped
 # lower; the totals oversize the AI budget on purpose (humans are free and the safety win).
 HUMAN_PLAN: dict[str, list[tuple]] = {
-    "en": [("editlens", lambda n: corpora.load_editlens(limit=n), 13000)],
+    # EN = permissive sources (EditLens dropped from TRAINING for Apache-2.0 licensing; it stays an
+    # EVAL set via load_editlens_split). Register-balanced like ja/zh; formal is the biggest register
+    # (fineweb + arxiv), the rest ~2.5k each. FineWeb/arxiv/wikinews/gutenberg are pre-LLM/PD/CC0/CC-BY.
+    "en": [
+        ("fineweb", lambda n: corpora.load_fineweb_en(limit=n), 5000),
+        ("arxiv-abstracts", lambda n: corpora.load_arxiv_abstracts_en(limit=n), 2500),
+        ("gutenberg", lambda n: corpora.load_gutenberg_en(limit=n), 2500),
+        ("wikinews-en", lambda n: corpora.load_wikinews_en(limit=n), 2500),
+        ("amazon-reviews-en", lambda n: corpora.load_amazon_reviews_en(limit=n), 2500),
+        ("stackexchange", lambda n: corpora.load_stackexchange_en(limit=n), 2500),
+    ],
     "ja": [
         ("wiki40b-ja", lambda n: corpora.load_wiki40b("ja", limit=n), 4500),
         ("aozora", lambda n: corpora.load_aozora(limit=n), 3500),
@@ -43,12 +56,22 @@ HUMAN_PLAN: dict[str, list[tuple]] = {
     ],
 }
 
-# AI-doc budget per language → ×~2 (mirror+edit) ≈ the design's 1.5k EN / 6.3k ja / 6.3k zh-TW (§5).
-AI_DOC_TARGET = {"en": 750, "ja": 3150, "zh-tw": 3150}
+# AI-doc budget per language → ×~2 (mirror+edit) ≈ 3k EN / 6.3k ja / 6.3k zh-TW. EN is smaller
+# because a cheap-weighted generator mix + the free-AI backbone (below) keep it under the ~$20 cap;
+# the smoke measures the real EN per-row cost before the full spend (EN edited is the monitored risk).
+AI_DOC_TARGET = {"en": 1500, "ja": 3150, "zh-tw": 3150}
 
-# Sources added this session — the smoke validates each end-to-end (gen→gate→score) before the
-# full spend (retires "new loaders never went through generation" risk).
+# EN ai_generated comes ENTIRELY from the registry mirror pipeline (like ja/zh-TW). The free permissive
+# backbone (Cosmopedia/HelpSteer2) was dropped as a false economy — a stale 2023 model, register-confounded
+# (no human twin → a topic shortcut, not AI-ness). Kept as a 0-valued switch (>0 re-enables).
+EN_FREE_AI = 0
+
+# Sources the smoke validates end-to-end (gen→gate→score) before the full spend (retires the
+# "a new loader never went through generation" risk).
 SMOKE_PLAN: dict[str, list[tuple]] = {
+    "en": [("fineweb", corpora.load_fineweb_en), ("arxiv-abstracts", corpora.load_arxiv_abstracts_en),
+           ("gutenberg", corpora.load_gutenberg_en), ("wikinews-en", corpora.load_wikinews_en),
+           ("amazon-reviews-en", corpora.load_amazon_reviews_en), ("stackexchange", corpora.load_stackexchange_en)],
     "ja": [("aozora", corpora.load_aozora), ("wikinews-ja", corpora.load_wikinews_ja),
            ("amazon-reviews-ja", corpora.load_amazon_reviews_ja)],
     "zh-tw": [("tw-gov", corpora.load_twgov)],
@@ -61,7 +84,7 @@ def _seed(row: dict) -> str:
 
 def load_humans(language: str) -> tuple[list[dict], list[dict]]:
     """Load + register-balance the human pool, then decontaminate EN against the benchmarks we
-    report on (RAID + EditLens-test, §14.2) BEFORE generation — a contaminated human poisons its
+    report on (RAID + EditLens-test) BEFORE generation — a contaminated human poisons its
     mirror+edit too, so the spend only buys clean docs. zh/ja have no external target (their
     sources are disjoint from public benchmarks; see decontam doc) → pass through unfiltered.
     Returns (clean, contaminated_dropped)."""
@@ -79,7 +102,7 @@ def load_humans(language: str) -> tuple[list[dict], list[dict]]:
 
 def select_ai_docs(humans: list[dict], n: int) -> list[dict]:
     """Round-robin a seeded sample across sources → balanced register coverage on the AI side
-    (the budget buys COVERAGE, not frequency from the biggest source — design §5)."""
+    (the budget buys COVERAGE, not frequency from the biggest source)."""
     by_source: dict[str, list[dict]] = defaultdict(list)
     for row in humans:
         by_source[row["source"]].append(row)
@@ -96,32 +119,101 @@ def select_ai_docs(humans: list[dict], n: int) -> list[dict]:
     return picked
 
 
+def _read_jsonl(path: Path) -> list[dict]:
+    # split on "\n" only: json.dumps(ensure_ascii=False) emits raw U+2028/U+2029/U+0085
+    if not path.exists():
+        return []
+    return [json.loads(ln) for ln in path.read_text("utf-8").split("\n") if ln.strip()]
+
+
+# --- additive top-up ---------------------------------------------------------
+def run_topup(language: str, n_new: int) -> None:
+    """Additively generate n_new NEW docs on the CURRENT registry and APPEND them to the cached
+    {lang}.jsonl — the still-valid old generations are kept, not clobbered (generate() opens 'w',
+    so we write a temp file then append). Docs already generated — keyed by (source, source_id),
+    matching assemble's doc identity — are excluded, so the spend only buys new docs. Lifts the
+    graded middle by edit VOLUME (EDITS_PER_DOC edits/doc). SPENDS MONEY. Re-run --assemble-only
+    afterwards to re-gate/score/split with the enlarged cache."""
+    path = generate.GENERATED_DIR / f"{language}.jsonl"
+    cached = _read_jsonl(path)
+    done = {(r["source"], r["source_id"]) for r in cached}
+    print(f"[topup {language}] cache: {len(cached)} rows across {len(done)} docs")
+
+    humans, _ = load_humans(language)  # reuses decontam for EN — a new doc is clean before it spends
+    remaining = [h for h in humans if (h["source"], h["source_id"]) not in done]
+    print(f"[topup {language}] {len(remaining)}/{len(humans)} human docs still ungenerated → selecting {n_new}")
+    new_docs = select_ai_docs(remaining, n_new)
+    if len(new_docs) < n_new:
+        print(f"[topup {language}] WARNING: pool exhausted — only {len(new_docs)} new docs available")
+
+    tmp = generate.GENERATED_DIR / f"_{language}_topup.jsonl"
+    print(f"[topup {language}] generating mirror + {generate.EDITS_PER_DOC} edits for "
+          f"{len(new_docs)} docs (SPENDS MONEY) …")
+    new_rows = generate.generate(new_docs, tmp)
+
+    with path.open("a", encoding="utf-8") as fh:  # APPEND — never overwrite the cached rows
+        for row in new_rows:
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    print(f"[topup {language}] appended {len(new_rows)} rows → {path} "
+          f"(now {len(cached) + len(new_rows)} rows). Run --assemble-only to re-split.")
+
+
+def _print_recommended_cuts(kept: list[dict]) -> None:
+    """Print the p22/p80 edit-cosine cut per language — the numbers to hand-set into
+    assemble.BUCKET_CUTS. Buckets 1/2 (the graded middle = the product) are that percentile band;
+    assemble() reads the module constant, so editing it is the routing mechanism — this only
+    recommends. Prints on every run_build (incl. --assemble-only) so a top-up is re-cut cheaply."""
+    by_lang: dict[str, list[float]] = defaultdict(list)
+    for r in kept:
+        if r["text_type"] == "ai_edited" and r.get("cosine_score") is not None:
+            by_lang[r["language"]].append(r["cosine_score"])
+    print("\nRecommended BUCKET_CUTS (p22, p80 of edit cosine) — hand-set in assemble.py:")
+    for lang in sorted(by_lang):
+        vals = sorted(by_lang[lang])
+        n = len(vals)
+        p22 = vals[min(n - 1, int(0.22 * n))]
+        p80 = vals[min(n - 1, int(0.80 * n))]
+        print(f"  {lang:6s} n={n:5d}  p22={p22:.3f} p80={p80:.3f}   (current {assemble.BUCKET_CUTS.get(lang)})")
+
+
 # --- full build --------------------------------------------------------------
-def run_build(langs: list[str]) -> None:
+def run_build(langs: list[str], *, assemble_only: bool = False) -> None:
     humans: list[dict] = []
     generated: list[dict] = []
     ood: list[dict] = []
+    backbone_ai: list[dict] = []
     contaminated: list[dict] = []
     for lang in langs:
         print(f"[{lang}] loading humans …")
         lang_humans, lang_contam = load_humans(lang)
         contaminated += lang_contam
-        ai_docs = select_ai_docs(lang_humans, AI_DOC_TARGET[lang])
-        print(f"[{lang}] {len(lang_humans)} humans → generating mirror+edit for {len(ai_docs)} docs …")
-        generated += generate.generate(ai_docs, generate.GENERATED_DIR / f"{lang}.jsonl")
+        path = generate.GENERATED_DIR / f"{lang}.jsonl"
+        if assemble_only:  # resume from already-generated rows — no API calls, no spend
+            cached = _read_jsonl(path)
+            print(f"[{lang}] {len(lang_humans)} humans → reusing {len(cached)} cached generated rows …")
+            generated += cached
+        else:
+            ai_docs = select_ai_docs(lang_humans, AI_DOC_TARGET[lang])
+            print(f"[{lang}] {len(lang_humans)} humans → generating mirror+edit for {len(ai_docs)} docs …")
+            generated += generate.generate(ai_docs, path)
         humans += lang_humans
-        if lang == "en":  # EN inherits EditLens's held-out OOD slices (design §11)
+        if lang == "en":  # EN keeps EditLens's held-out OOD slices for EVAL only
             ood += corpora.load_editlens_split("test_llama") + corpora.load_editlens_split("test_enron")
+            if EN_FREE_AI:
+                backbone_ai += corpora.load_free_ai_en(limit=EN_FREE_AI)
+                print(f"[en] + {len(backbone_ai)} permissive free-AI backbone rows (cosmopedia/helpsteer2)")
 
     print(f"gating {len(generated)} generated rows …")
     kept, dropped = gates.run_gates(generated)
     print(f"scoring {sum(r['text_type'] == 'ai_edited' for r in kept)} edited rows …")
     score.score_edited(kept)
+    _print_recommended_cuts(kept)
 
-    rows = humans + kept + ood
+    # backbone_ai already carries EditLens labels+cosine → bypasses gates/score, straight into assembly
+    rows = humans + kept + ood + backbone_ai
     print(f"assembling {len(rows)} rows → {assemble.SPLITS_DIR} …")
     counts = assemble.assemble(rows)
-    _write_build_report(humans, kept, dropped, ood, contaminated, counts)
+    _write_build_report(humans, kept, dropped, ood, contaminated, counts, backbone_ai)
     print(f"\nsplits: {counts}\nreport: {REPORT_PATH}")
 
 
@@ -149,7 +241,7 @@ def _list_price_estimate(rows: list[dict]) -> float | None:
     return sum(e["cost"] for e in est.values())
 
 
-def _write_build_report(humans, kept, dropped, ood, contaminated, counts) -> None:
+def _write_build_report(humans, kept, dropped, ood, contaminated, counts, backbone_ai=()) -> None:
     chat_rows = kept + dropped
     by_model = _actual_cost_by_model(chat_rows)
     gen_cost = sum(e["cost"] for e in by_model.values())
@@ -167,7 +259,7 @@ def _write_build_report(humans, kept, dropped, ood, contaminated, counts) -> Non
            f"(generation ${gen_cost:.2f} + embeddings ${embed_cost:.2f}){crosscheck}",
            "", "## Splits", "| split | rows |", "|---|---|"]
     out += [f"| {s} | {n} |" for s, n in sorted(counts.items())]
-    shipped = humans + kept + ood
+    shipped = humans + kept + ood + list(backbone_ai)
     out += ["", "## Class × language", "| lang | human | mirror | edited |", "|---|---|---|---|"]
     for lang in ("en", "ja", "zh-tw"):
         c = Counter(r["text_type"] for r in shipped if r["language"] == lang)
@@ -180,7 +272,7 @@ def _write_build_report(humans, kept, dropped, ood, contaminated, counts) -> Non
     out += ["", "## Gate drops", "| reason | n |", "|---|---|"]
     out += [f"| {r} | {n} |" for r, n in Counter(d["drop_reason"] for d in dropped).most_common()]
 
-    out += ["", "## Decontamination (EN humans vs RAID + EditLens-test, §14.2)",
+    out += ["", "## Decontamination (EN humans vs RAID + EditLens-test)",
             f"- dropped {len(contaminated)} contaminated EN humans before generation"]
     if contaminated:
         ov = sorted((c["meta"]["contam_overlap"] for c in contaminated), reverse=True)
@@ -243,6 +335,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Greyscope v2 build driver (SPENDS MONEY with --smoke/--full).")
     parser.add_argument("--smoke", action="store_true", help="tiny new-source validation (~$0.20)")
     parser.add_argument("--full", action="store_true", help="the full build (~$50)")
+    parser.add_argument("--assemble-only", action="store_true",
+                        help="re-gate/score/assemble from cached generations (no API, no spend)")
+    parser.add_argument("--topup-en", type=int, default=0, metavar="N",
+                        help="additively generate N NEW EN docs on the current registry + append (SPENDS)")
     parser.add_argument("--langs", nargs="+", default=["en", "ja", "zh-tw"])
     args = parser.parse_args()
 
@@ -250,6 +346,10 @@ def main() -> None:
         run_smoke()
     elif args.full:
         run_build(args.langs)
+    elif args.topup_en:
+        run_topup("en", args.topup_en)
+    elif args.assemble_only:
+        run_build(args.langs, assemble_only=True)
     else:
         _dry_run(args.langs)
 

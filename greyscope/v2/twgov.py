@@ -20,18 +20,33 @@ from __future__ import annotations
 
 import hashlib
 import re
+import ssl
 import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import certifi
 import httpx
 from bs4 import BeautifulSoup
+
+
+def _ssl_context() -> ssl.SSLContext:
+    """gov.taipei's TLS cert is chain-valid but omits the RFC-5280 Subject Key Identifier
+    extension. Python 3.13's default context enables VERIFY_X509_STRICT, which newly rejects that
+    (it worked on older runtimes) → CERTIFICATE_VERIFY_FAILED on any uncached article. Verify the
+    CA chain + hostname normally (certifi bundle); just drop the strict-RFC flag so the
+    non-compliant-but-valid gov cert is accepted. No security downgrade beyond that leniency."""
+    ctx = ssl.create_default_context(cafile=certifi.where())
+    ctx.verify_flags &= ~getattr(ssl, "VERIFY_X509_STRICT", 0)
+    return ctx
+
 
 BASE_URL = "https://www.gov.taipei"
 NEWS_NODE = "F0DDAF49B89E9413"  # 市府新聞稿 (integrated city press-release archive)
 SMS = "72544237BBE4C5F6"        # the category's own self-link s — never an article
 CACHE_DIR = Path("data/v2/cache/twgov")
 _HEADERS = {"User-Agent": "Mozilla/5.0 (greyscope-v2 dataset build; research)"}
+_SSL_CONTEXT = _ssl_context()
 _RATE_LIMIT_S = 0.4
 _ROC_YEAR_OFFSET = 1911  # 民國 year + 1911 = Gregorian (民國111 = 2022)
 _ROC_DATE = re.compile(r"(\d{3})-(\d{1,2})-(\d{1,2})")  # list-row publish date, e.g. 115-06-22
@@ -108,7 +123,8 @@ def _get(url: str, *, max_retries: int = 4, timeout: float = 25.0) -> str:
     for attempt in range(max_retries):
         try:
             time.sleep(_RATE_LIMIT_S)
-            response = httpx.get(url, headers=_HEADERS, timeout=timeout, follow_redirects=True)
+            response = httpx.get(url, headers=_HEADERS, timeout=timeout, follow_redirects=True,
+                                 verify=_SSL_CONTEXT)
             if response.status_code == 404:
                 return ""
             response.raise_for_status()
@@ -165,14 +181,16 @@ def fetch_news(*, before_year: int = 2022, limit: int | None = None) -> list[dic
     page = _bisect_page_for(before_year)
     last = _max_page()
     out: list[dict] = []
-    while page <= last and (limit is None or len(out) < limit):
+    seen: set[str] = set()  # the archive re-lists some `s` ids (occasionally with edited bodies) →
+    while page <= last and (limit is None or len(out) < limit):  # dedupe by id so one `s` = one row
         for row in parse_list(_get(_list_url(page))):
             year, month, day = row["date"]
-            if year >= before_year:
+            if year >= before_year or row["s"] in seen:
                 continue
             body = parse_article(_get(_article_url(row["s"])))
             if not body:
                 continue
+            seen.add(row["s"])
             out.append({"s": row["s"], "title": row["title"], "unit": row["unit"],
                         "pub_date": f"{year:04d}-{month:02d}-{day:02d}", "body": body})
             if limit is not None and len(out) >= limit:

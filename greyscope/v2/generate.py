@@ -1,8 +1,11 @@
-"""Generation: one mirror + one edit per human doc (design §5–6, plan §6).
+"""Generation: one mirror + N edits per human doc, from DECOUPLED mirror/edit generator pools.
+
+Consumer apps serve the good tier (ChatGPT web = Sol), so the full-gen (mirror) pool carries the
+realistic flagship voice while the EDIT pool — where the per-doc edit multiplier lands — stays cheap
+(off/low reasoning, no flagship). The two pools are sampled independently per doc.
 
 Request-building is pure and seeded, so it unit-tests with no network; a re-run reconstructs
-the same dataset and reuses the cache. `generate()` is the only networked entry point — the
-pilot gates the first spend.
+the same dataset and reuses the cache. `generate()` is the only networked entry point.
 """
 
 from __future__ import annotations
@@ -23,48 +26,72 @@ from greyscope.v2.corpora import count_cjk_chars
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 GENERATED_DIR = Path("data/v2/generated")
 
-# Reasoning is data: each model lists the literal OpenRouter payloads it supports (probe-measured,
-# EXPERIMENTS 2026-06-17/20). The row records the payload sent + the ACTUAL reasoning_tokens (truth —
-# providers silently coarsen). Graded effort is real only on grok; elsewhere stay thin. None ⇒ omit.
+# Reasoning is data: each model lists the literal OpenRouter payloads it supports (probe-measured).
+# The row records the payload sent + the ACTUAL reasoning_tokens (truth — providers silently
+# coarsen). Graded effort is real only on grok; elsewhere stay thin (off↔low). None ⇒ omit. The EDIT
+# pool takes only the cheap payloads (off/none/low/minimal) — see `_reasoning_plan(cheap_only=...)`.
 _ALWAYS_LOW = [(1, {"effort": "low"})]                               # gpt-5.5: no minimal, floored low
 _GEMINI = [(1, {"effort": "minimal"}), (1, {"enabled": True})]       # gemini-3.x: no off → minimal floor
 _TOGGLE = [(1, {"enabled": False}), (1, {"enabled": True})]          # off/on
 _TOGGLE_OFF_LEAN = [(3, {"enabled": False}), (1, {"enabled": True})]  # claude: premium → mostly off
-_ON_IS_HIGH = [(1, {"enabled": False}), (1, {"effort": "high"})]     # deepseek/mistral: on = high only
+_ON_IS_HIGH = [(1, {"enabled": False}), (1, {"effort": "high"})]     # mistral: on = high only
+_DEEPSEEK = [(4, {"enabled": False}), (1, {"effort": "high"})]       # deepseek: mostly-off (on=high; no graded low)
 _GROK = [(30, {"enabled": False}), (30, {"effort": "low"}),
-         (25, {"effort": "medium"}), (15, {"effort": "high"})]       # the one real graded dial
+         (25, {"effort": "medium"}), (15, {"effort": "high"})]       # grok-4.3: the one real graded dial
+_GROK45 = [(3, {"effort": "low"}), (2, {"effort": "medium"}), (1, {"effort": "high"})]  # grok-4.5: no off, low floor
+_GPT_LUNA = [(4, {"effort": "minimal"}), (3, {"effort": "low"})]  # cheap GPT: casual bulk (probe: low==medium coarsen)
+_GPT_SOL = [(2, {"effort": "minimal"}), (1, {"effort": "low"})]      # flagship: cheapest settings (mirror-only)
+_HY3 = [(3, {"enabled": False}), (2, {"effort": "low"})]            # tencent: defaults high → send off explicitly
 _NO_REASONING = [(1, None)]                                          # ling: non-reasoning
 
-# Registry as data (slugs verified 2026-06-16): `weight` keys define per-language availability
-# (zh-TW excludes mainland models, §5); `flex` = -50% tier (OpenAI/Google); `reasoning` = above.
+# Registry as data: `weight` = per-language weight in each pool the model is in; `pools` = which pools
+# it participates in (default both). The EDIT pool is CHEAP-ONLY (premium models are mirror-only), so
+# full-gen carries the realistic flagship voice while the many per-doc edits stay cheap. `flex` = -50%
+# tier (OpenAI/Google); zh-TW excludes mainland-CN families (bias rule).
+_MIRROR_ONLY = ("mirror",)
 GENERATORS: list[dict] = [
-    {"family": "openai", "slug": "openai/gpt-5.5", "flex": True, "reasoning": _ALWAYS_LOW, "weight": {"en": 4, "ja": 3, "zh-tw": 3}},
-    {"family": "google", "slug": "google/gemini-3-flash-preview", "flex": True, "reasoning": _GEMINI, "weight": {"en": 4, "ja": 5, "zh-tw": 6}},  # cheap flex carrier ($0.50/$3)
-    {"family": "google", "slug": "google/gemini-3.5-flash", "flex": True, "reasoning": _GEMINI, "weight": {"en": 3, "ja": 3, "zh-tw": 3}},
-    {"family": "google", "slug": "google/gemini-3.1-pro-preview", "flex": True, "reasoning": _GEMINI, "weight": {"en": 2, "ja": 2, "zh-tw": 2}},
-    {"family": "anthropic", "slug": "anthropic/claude-sonnet-4.6", "flex": False, "reasoning": _TOGGLE_OFF_LEAN, "weight": {"en": 3, "ja": 3, "zh-tw": 3}},
-    {"family": "xai", "slug": "x-ai/grok-4.3", "flex": False, "reasoning": _GROK, "weight": {"en": 3, "ja": 3, "zh-tw": 4}},
-    {"family": "google-open", "slug": "google/gemma-4-31b-it", "flex": False, "reasoning": _TOGGLE, "weight": {"en": 1, "ja": 4, "zh-tw": 3}},
-    {"family": "alibaba", "slug": "qwen/qwen3.7-plus", "flex": False, "reasoning": _TOGGLE, "weight": {"en": 1, "ja": 4}},  # mainland: EN-allowed (bias rule is zh-TW-only), big EN app-channel
-    {"family": "deepseek", "slug": "deepseek/deepseek-v4-pro", "flex": False, "reasoning": _ON_IS_HIGH, "weight": {"en": 1, "ja": 4}},  # flagship = consumer-default + the cheap app workhorse (pro, not the flash mini)
-    {"family": "ling", "slug": "inclusionai/ling-2.6-flash", "flex": False, "reasoning": _NO_REASONING, "weight": {"ja": 3}},
+    # --- cheap bulk (both pools) ---
+    {"family": "tencent", "slug": "tencent/hy3", "flex": False, "reasoning": _HY3, "weight": {"en": 5}},  # cheapest current chat family ($0.14/$0.58); mainland → not zh-TW
+    {"family": "google", "slug": "google/gemini-3.1-flash-lite", "flex": True, "reasoning": _GEMINI, "weight": {"en": 4, "ja": 5, "zh-tw": 6}},  # cheap flex carrier ($0.25/$1.50)
+    {"family": "deepseek", "slug": "deepseek/deepseek-v4-pro", "flex": False, "reasoning": _DEEPSEEK, "weight": {"en": 3, "ja": 4}},  # cheapest family + top real target (promoted from EN wt1)
+    {"family": "deepseek", "slug": "deepseek/deepseek-v4-flash", "flex": False, "reasoning": _DEEPSEEK, "weight": {"en": 3}},  # ultra-cheap edit volume ($0.08/$0.15)
+    {"family": "openai", "slug": "openai/gpt-5.6-luna", "flex": True, "reasoning": _GPT_LUNA, "weight": {"en": 3}},  # current cheap GPT; carries GPT-family edits (proxy for Sol)
+    {"family": "xai", "slug": "x-ai/grok-4.3", "flex": False, "reasoning": _GROK, "weight": {"en": 3, "ja": 3, "zh-tw": 4}},  # cheap Grok volume
+    {"family": "google", "slug": "google/gemini-3.5-flash", "flex": True, "reasoning": _GEMINI, "weight": {"en": 2, "ja": 3, "zh-tw": 3}},
+    {"family": "alibaba", "slug": "qwen/qwen3.7-plus", "flex": False, "reasoning": _TOGGLE, "weight": {"en": 2, "ja": 4}},  # mainland: EN-allowed (bias rule is zh-TW-only)
+    {"family": "xai", "slug": "x-ai/grok-4.5", "flex": False, "reasoning": _GROK45, "pools": _MIRROR_ONLY, "weight": {"en": 1}},  # current Grok (currency); mirror-only — probe: no "off", "low" floor burns ~2k reasoning tok
     {"family": "moonshot", "slug": "moonshotai/kimi-k2.6", "flex": False, "reasoning": _TOGGLE, "weight": {"en": 1, "ja": 3}},
-    {"family": "mistral", "slug": "mistralai/mistral-medium-3-5", "flex": False, "reasoning": _ON_IS_HIGH, "weight": {"en": 1}},  # Western family, ~irrelevant for CJK → EN-only (§5)
+    {"family": "mistral", "slug": "mistralai/mistral-medium-3.1", "flex": False, "reasoning": _ON_IS_HIGH, "weight": {"en": 1}},  # Western family, EN-only ($0.40/$2)
+    {"family": "google-open", "slug": "google/gemma-4-31b-it", "flex": False, "reasoning": _TOGGLE, "weight": {"en": 1, "ja": 4, "zh-tw": 3}},
+    # --- premium, MIRROR-ONLY (full-gen carries the realistic flagship voice; edits stay cheap) ---
+    {"family": "openai", "slug": "openai/gpt-5.6-sol", "flex": True, "reasoning": _GPT_SOL, "pools": _MIRROR_ONLY, "weight": {"en": 5}},  # ~15% of the EN mirror pool (budget-first)
+    {"family": "anthropic", "slug": "anthropic/claude-sonnet-5", "flex": False, "reasoning": _TOGGLE_OFF_LEAN, "pools": _MIRROR_ONLY, "weight": {"en": 1, "ja": 3, "zh-tw": 3}},
+    {"family": "google", "slug": "google/gemini-3.1-pro-preview", "flex": True, "reasoning": _GEMINI, "pools": _MIRROR_ONLY, "weight": {"en": 1, "ja": 2, "zh-tw": 2}},  # probe: `gemini-pro-latest` alias 400s → use the concrete slug
+    # --- ja/zh legacy (EN top-up does not regenerate them; kept for their cached-parity registry) ---
+    {"family": "openai", "slug": "openai/gpt-5.5", "flex": True, "reasoning": _ALWAYS_LOW, "weight": {"ja": 3, "zh-tw": 3}},  # superseded by 5.6 for EN
+    {"family": "ling", "slug": "inclusionai/ling-2.6-flash", "flex": False, "reasoning": _NO_REASONING, "weight": {"ja": 3}},
 ]
 
-MARKDOWN_MODES = ("default", "suppressed")  # config-sampling axis (§6)
+MARKDOWN_MODES = ("default", "suppressed")  # config-sampling axis
 MAX_COMPLETION_TOKENS = 4096  # generous ceiling so finish_reason="length" flags a real runaway
 GEN_CONCURRENCY = 24  # I/O-bound (each call waits ~20s on the API) → many in-flight; retries absorb 429s
+EDITS_PER_DOC = 2  # >1 edit/doc densely fills the graded middle (edits land ~58% in b1/b2)
+_CHEAP_REASONING = {"none", "off", "low", "minimal"}  # the edit pool's payloads (no thinking-token burn)
 
 # Edits that ship are derivatives → only PD/permissive sources; others get a build-only edit
-# (zh-TW scorer validation) tagged shippable_edit=False for assembly to drop (design §4/§13).
-# editlens BY-NC-SA, aozora PD/CC BY, wikinews-ja CC BY 4.0, tw-gov OGDL, open2ch Apache-2.0 →
-# all edited-OK. wiki40b (CC BY-SA), ptt (unlicensed), amazon-reviews-ja (Amazon) → mirror-only.
-SHIPPABLE_EDIT_SOURCES = {"editlens", "wikinews-ja", "tw-gov", "aozora", "open2ch"}
-# A novel can't be mirror-generated from its own text → human + edited only (design §4).
-MIRROR_INELIGIBLE_SOURCES = {"aozora"}
+# (zh-TW scorer validation) tagged shippable_edit=False for assembly to drop.
+# Edited-OK (PD / CC0 / CC-BY, attribution-only): aozora, wikinews-ja, tw-gov, open2ch, and the EN
+# permissive sources gutenberg (PD), wikinews-en (CC BY), arxiv-abstracts (CC0). Mirror-only (a mirror
+# is new work, an edit is a derivative): wiki40b + stackexchange (CC BY-SA share-alike), ptt (unlicensed),
+# amazon-reviews-{ja,en} (no grant), fineweb (ODC-BY on the compilation; underlying web copyright murky).
+SHIPPABLE_EDIT_SOURCES = {"wikinews-ja", "tw-gov", "aozora", "open2ch",
+                          "gutenberg", "wikinews-en", "arxiv-abstracts"}
+# Sources that get an edit but no mirror. Aozora (ja creative) is now mirror-eligible via a
+# creative-writing prompt seeded by the work's theme — an original AI passage, not a retelling of
+# the source (the regurgitation gate drops any verbatim echo). None are ineligible at present.
+MIRROR_INELIGIBLE_SOURCES: set[str] = set()
 
-# Per-doc steering, sampled so the AI side isn't keyed on one fixed string (§6).
+# Per-doc steering, sampled so the AI side isn't keyed on one fixed string.
 _LANG_STEER = {
     "en": ("",),
     "ja": ("日本語で書いてください。",),
@@ -76,7 +103,7 @@ _SUPPRESS_MD = {
     "zh-tw": "請勿使用任何 Markdown 格式，以純文字書寫。",
 }
 # Anti-preamble PREVENTION — the primary lever (the strip in row shaping is only the net),
-# per-language to avoid a cross-lingual prompting confound (§6, EXPERIMENTS 2026-06-21).
+# per-language to avoid a cross-lingual prompting confound.
 _OUTPUT_ONLY = {
     "en": "Output only the text itself — no preamble, no commentary, no sign-off, and no surrounding quotes or code fences.",
     "ja": "前置きや説明、結びの挨拶は書かず、求められた本文だけを出力してください。引用符やコードブロックで囲まないでください。",
@@ -96,15 +123,18 @@ def _seeded_choice(seq: tuple | list, *parts) -> object:
     return seq[_seeded_index(seq, *parts)]
 
 
-def generators_for(language: str) -> list[dict]:
-    return [g for g in GENERATORS if language in g["weight"]]
+def generators_for(language: str, pool: str | None = None) -> list[dict]:
+    """Generators available for `language`, optionally restricted to a `pool` ("mirror"/"edit")."""
+    return [g for g in GENERATORS if language in g["weight"]
+            and (pool is None or pool in g.get("pools", ("mirror", "edit")))]
 
 
-def pick_generator(record: dict, generators: list[dict]) -> dict:
-    """Seeded pick over the per-language registry weights (§5)."""
+def pick_generator(record: dict, generators: list[dict], seed_tag: str = "gen") -> dict:
+    """Seeded pick over the per-language registry weights. `seed_tag` decorrelates the picks so a
+    doc's mirror and its edits draw independently from their (already pool-filtered) `generators`."""
     lang = record["language"]
     weighted = [g for g in generators for _ in range(g["weight"][lang])]
-    return _seeded_choice(weighted, record["source_id"], lang, "gen")
+    return _seeded_choice(weighted, record["source_id"], lang, seed_tag)
 
 
 def pick_style(record: dict) -> dict:
@@ -123,7 +153,7 @@ def load_register_prompt(language: str) -> str:
 @lru_cache(maxsize=None)
 def load_system_styles(language: str) -> tuple[dict, ...]:
     """Prompt-style pool as data: plain / humanizer / persona, each `{id, family, weight, text?}`.
-    `family` is the eval evasion-slice handle (§11)."""
+    `family` is the eval evasion-slice handle."""
     raw = yaml.safe_load((PROMPTS_DIR / "system" / f"{language}.yaml").read_text(encoding="utf-8"))
     return tuple(raw)
 
@@ -160,7 +190,7 @@ def _length_hint(record: dict) -> str:
         return f"{words} words"
     # zh-TW sources carry more non-CJK noise (URLs/markup) and its models hit the number, so
     # target the CJK count the gate measures → no overshoot; ja prose is clean and undershoots,
-    # so len(text) already lands it (pilot 2026-06-21: zh-tw 1.31× → ~1.0×, ja unchanged at 0.96×).
+    # so len(text) already lands it (an earlier run: zh-tw 1.31× → ~1.0×, ja unchanged at 0.96×).
     basis = count_cjk_chars(text) if lang == "zh-tw" else len(text)
     chars = max(150, round(basis / 50) * 50)
     return f"{chars}字"
@@ -168,7 +198,7 @@ def _length_hint(record: dict) -> str:
 
 def _topic_from_text(text: str, language: str) -> str:
     """Topic anchor when `meta.topic` is absent: the opening clause (keeps the mirror
-    topic-matched, §2)."""
+    topic-matched)."""
     text = text.strip()
     if language == "en":
         first = re.split(r"(?<=[.!?])\s", text, maxsplit=1)[0]
@@ -198,7 +228,7 @@ def _system_prompt(record: dict, style: dict, markdown_mode: str, instruction: s
 
 def _mirror_variant(record: dict, generator: dict) -> tuple[str, str]:
     """Seeded mirror-template pick → (variant text, mirror_prompt_id). Single source of the
-    pick so the recorded id always matches the prompt rendered (§6 provenance)."""
+    pick so the recorded id always matches the prompt rendered (provenance)."""
     by_register = _mirror_by_register(record["language"])
     register = record["meta"].get("text_register", _MIRROR_FALLBACK)
     if register not in by_register:
@@ -236,7 +266,7 @@ class GenRequest:
     messages: list[dict]
     reasoning: dict | None = None  # OpenRouter payload; None ⇒ omit
     edit_prompt: dict | None = None
-    mirror_prompt_id: str | None = None  # which mirror register/variant rendered it (§6)
+    mirror_prompt_id: str | None = None  # which mirror register/variant rendered it
 
 
 def _label_for(payload: dict | None) -> str:
@@ -250,36 +280,60 @@ def _label_for(payload: dict | None) -> str:
     return "on"
 
 
-def _reasoning_plan(generator: dict, *seed_parts) -> dict | None:
-    """Seeded pick from the model's reasoning payloads → a fresh copy to send (None ⇒ omit)."""
-    pool = [payload for weight, payload in generator["reasoning"] for _ in range(weight)]
+def _reasoning_plan(generator: dict, *seed_parts, cheap_only: bool = False) -> dict | None:
+    """Seeded pick from the model's reasoning payloads → a fresh copy to send (None ⇒ omit).
+    `cheap_only` (the edit pool) keeps just the off/none/low/minimal payloads — no thinking-token
+    burn on a simple edit — falling back to omit-reasoning if a model has no cheap option."""
+    pairs = generator["reasoning"]
+    if cheap_only:
+        pairs = [(w, p) for w, p in pairs if _label_for(p) in _CHEAP_REASONING] or [(1, None)]
+    pool = [payload for weight, payload in pairs for _ in range(weight)]
     payload = _seeded_choice(pool, *seed_parts, "reason")
     return dict(payload) if payload is not None else None
 
 
+def _edit_prompts_for_doc(record: dict) -> list[dict]:
+    """EDITS_PER_DOC distinct edit prompts drawn from ONE split — keeps train/val/test edit prompts
+    disjoint even with >1 edit/doc (a doc lands in the split its edits' `split_tag` names), seeded per doc."""
+    src, sid = record["source"], record["source_id"]
+    prompts = load_edit_prompts(record["language"])
+    first = _seeded_choice(prompts, src, sid, "edit0")
+    split_pool = [p for p in prompts if p["split"] == first["split"]]
+    chosen = [first]
+    for i in range(1, EDITS_PER_DOC):
+        remaining = [p for p in split_pool if p not in chosen] or split_pool
+        chosen.append(remaining[_seeded_index(remaining, src, sid, f"edit{i}")])
+    return chosen
+
+
 def build_requests(records: list[dict]) -> list[GenRequest]:
-    """Mirror + edit specs per record (mirror skipped for mirror-ineligible sources). No network."""
+    """One mirror (mirror pool) + EDITS_PER_DOC edits (cheap edit pool) per record; the two pools are
+    sampled independently. Mirror skipped for mirror-ineligible sources. No network."""
     requests: list[GenRequest] = []
     for record in records:
-        src, sid = record["source"], record["source_id"]
-        generator = pick_generator(record, generators_for(record["language"]))
+        src, sid, lang = record["source"], record["source_id"], record["language"]
         style = pick_style(record)
-        markdown_mode = _seeded_choice(MARKDOWN_MODES, src, sid, generator["slug"], "md")
 
         if src not in MIRROR_INELIGIBLE_SOURCES:
+            m_gen = pick_generator(record, generators_for(lang, "mirror"), "gen-mirror")
+            m_md = _seeded_choice(MARKDOWN_MODES, src, sid, m_gen["slug"], "md")
             requests.append(GenRequest(
-                "mirror", record, generator, style["id"], markdown_mode,
-                build_mirror_messages(record, generator, style, markdown_mode),
-                reasoning=_reasoning_plan(generator, src, sid, generator["slug"], "mirror"),
-                mirror_prompt_id=_mirror_variant(record, generator)[1],
+                "mirror", record, m_gen, style["id"], m_md,
+                build_mirror_messages(record, m_gen, style, m_md),
+                reasoning=_reasoning_plan(m_gen, src, sid, m_gen["slug"], "mirror"),
+                mirror_prompt_id=_mirror_variant(record, m_gen)[1],
             ))
-        edit_prompt = _seeded_choice(load_edit_prompts(record["language"]), src, sid, generator["slug"], "edit")
-        requests.append(GenRequest(
-            "edit", record, generator, style["id"], markdown_mode,
-            build_edit_messages(record, style, markdown_mode, edit_prompt),
-            reasoning=_reasoning_plan(generator, src, sid, generator["slug"], "edit"),
-            edit_prompt=edit_prompt,
-        ))
+
+        edit_gens = generators_for(lang, "edit")
+        for i, edit_prompt in enumerate(_edit_prompts_for_doc(record)):
+            e_gen = pick_generator(record, edit_gens, f"gen-edit{i}")
+            e_md = _seeded_choice(MARKDOWN_MODES, src, sid, e_gen["slug"], f"md-edit{i}")
+            requests.append(GenRequest(
+                "edit", record, e_gen, style["id"], e_md,
+                build_edit_messages(record, style, e_md, edit_prompt),
+                reasoning=_reasoning_plan(e_gen, src, sid, e_gen["slug"], f"edit{i}", cheap_only=True),
+                edit_prompt=edit_prompt,
+            ))
     return requests
 
 
@@ -326,9 +380,11 @@ def _strip_ai_header(text: str, language: str) -> tuple[str, str | None]:
 
 def _base_row(record: dict, req: GenRequest, result: openrouter.ChatResult, text_type: str) -> dict:
     text, stripped_header = _strip_ai_header(_strip_think(result.text), record["language"])
+    # edit prompt id disambiguates the >1 edits/doc (same doc, distinct prompt → unique text_id)
+    edit_tag = f"/{req.edit_prompt['id']}" if req.kind == "edit" and req.edit_prompt else ""
     return {
         "text_id": f"{record['language']}/{record['source']}/{record['source_id']}"
-                   f"/{text_type}/{_safe(req.generator['slug'])}/{req.prompt_id}",
+                   f"/{text_type}/{_safe(req.generator['slug'])}/{req.prompt_id}{edit_tag}",
         "text": text,
         "language": record["language"],
         "text_type": text_type,
@@ -342,7 +398,7 @@ def _base_row(record: dict, req: GenRequest, result: openrouter.ChatResult, text
             **record["meta"],
             "stripped_header": stripped_header,  # build-only: the chat wrapper removed, if any (review surface)
             "reasoning_request": req.reasoning,  # payload sent (provenance)
-            "reasoning_tokens": _usage_reasoning_tokens(result.usage),  # actual (truth, §6)
+            "reasoning_tokens": _usage_reasoning_tokens(result.usage),  # actual (truth)
             # build-only — assembly strips these from the shipped schema (like source_text):
             "served_tier": result.served_tier,
             "finish_reason": result.finish_reason,
@@ -353,7 +409,7 @@ def _base_row(record: dict, req: GenRequest, result: openrouter.ChatResult, text
 
 def mirror_row(record: dict, req: GenRequest, result: openrouter.ChatResult) -> dict:
     row = _base_row(record, req, result, "ai_generated")
-    row["cosine_score"] = 1.0  # generated = 1 by class (§7)
+    row["cosine_score"] = 1.0  # generated = 1 by class
     row["bucket"] = 3
     row["meta"]["mirror_prompt_id"] = req.mirror_prompt_id
     return row
@@ -361,7 +417,7 @@ def mirror_row(record: dict, req: GenRequest, result: openrouter.ChatResult) -> 
 
 def edit_row(record: dict, req: GenRequest, result: openrouter.ChatResult) -> dict:
     row = _base_row(record, req, result, "ai_edited")
-    row["cosine_score"] = None  # filled by score.py (§8)
+    row["cosine_score"] = None  # filled by score.py
     row["bucket"] = None
     row["meta"].update({
         "edit_prompt_id": req.edit_prompt["id"],
@@ -372,7 +428,7 @@ def edit_row(record: dict, req: GenRequest, result: openrouter.ChatResult) -> di
     return row
 
 
-# --- networked execution (FIRST SPEND — gated by the pilot) ------------------
+# --- networked execution (FIRST SPEND) --------------------------------------
 def run_request(req: GenRequest) -> dict:
     result = openrouter.chat(
         req.messages,
@@ -385,7 +441,7 @@ def run_request(req: GenRequest) -> dict:
 
 
 def generate(records: list[dict], out_path: Path) -> list[dict]:
-    """Run every request (cached) and write rows. NETWORKED — the pilot is the first spend.
+    """Run every request (cached) and write rows. NETWORKED — the first spend.
     Requests are independent + I/O-bound → run concurrently; a terminal API failure is logged
     and skipped (kept out of the batch), never allowed to abort the whole run."""
     requests = build_requests(records)
@@ -396,6 +452,10 @@ def generate(records: list[dict], out_path: Path) -> list[dict]:
             i = futures[fut]
             try:
                 slots[i] = fut.result()
+            except openrouter.OpenRouterAuthError:
+                for pending in futures:  # cap/credit/key is terminal — stop, don't fail every call
+                    pending.cancel()
+                raise
             except openrouter.OpenRouterError as exc:
                 req = requests[i]
                 print(f"  [skip] {req.kind} {req.generator['slug']} ({req.record['language']}): {str(exc)[:120]}")

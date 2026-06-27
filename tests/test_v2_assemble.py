@@ -54,6 +54,21 @@ def test_to_split_row_strips_build_only_fields():
     assert shipped["meta"]["edit_category"] == "paraphrase"   # provenance kept
 
 
+def test_dedupe_text_ids_keeps_first_when_a_source_reemits_an_id():
+    # gov.taipei re-emits a few `s` ids with an edited body → same text_id, DIFFERENT text
+    # (text-based dedupe_splits can't see it); the id guard must keep the first, drop the rest.
+    rows = [
+        {"text_id": "zh-tw/tw-gov/A/human_written", "text": "body one"},
+        {"text_id": "zh-tw/tw-gov/A/human_written", "text": "body two (edited re-list)"},
+        {"text_id": "zh-tw/tw-gov/B/human_written", "text": "unique"},
+    ]
+    kept, dropped = assemble.dedupe_text_ids(rows)
+    assert dropped == 1
+    assert [r["text_id"] for r in kept] == ["zh-tw/tw-gov/A/human_written", "zh-tw/tw-gov/B/human_written"]
+    assert kept[0]["text"] == "body one"                 # first occurrence wins
+    assert len({r["text_id"] for r in kept}) == len(kept)  # invariant: globally unique text_id
+
+
 def test_drop_unshippable_edits_removes_mirror_only_source_edits():
     rows = (_doc("ja", "wiki40b-ja", "d1", edit_cosine=0.05, split_tag="train")
             + _doc("ja", "aozora", "d2", edit_cosine=0.05, split_tag="train"))
@@ -95,6 +110,30 @@ def test_held_out_generator_goes_to_ood_split():
     assemble.assign_splits(rows)
     assert {r["split"] for r in rows if r["source_id"] == "d1"} == {"ood_generator"}  # whole doc reserved
     assert {r["split"] for r in rows if r["source_id"] == "d2"} == {"train"}          # normal doc → edit tag
+
+
+def test_dedupe_splits_removes_cross_and_within_split_exact_texts():
+    def r(split, text, text_type="human_written"):
+        return {"text": text, "text_type": text_type, "language": "en", "split": split}
+
+    rows = [
+        r("train", "shared boilerplate line"),   # kept (highest priority)
+        r("val", "shared boilerplate line"),      # dropped — same text, lower-priority split
+        r("test", "shared boilerplate line"),     # dropped
+        r("train", "shared boilerplate line", "ai_generated"),  # dropped — within-split exact dup
+        r("val", "unique to val"),                # kept
+        r("test_llama", "shared boilerplate line"),  # external eval split — NEVER touched
+    ]
+    kept, dropped = assemble.dedupe_splits(rows)
+    assert dropped == 3
+    by_split = {}
+    for row in kept:
+        by_split.setdefault(row["split"], []).append(row["text"])
+    assert by_split["train"] == ["shared boilerplate line"]   # one copy, in train
+    assert "shared boilerplate line" not in by_split.get("val", [])
+    assert by_split["val"] == ["unique to val"]
+    assert "test" not in by_split                              # its only row was a dup
+    assert by_split["test_llama"] == ["shared boilerplate line"]  # external split preserved verbatim
 
 
 def test_inherited_split_is_respected():

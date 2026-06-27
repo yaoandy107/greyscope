@@ -1,10 +1,10 @@
-"""Assembly (design §14, plan §9): gated + scored rows → bucketed, source-doc-split,
-training-shaped CSV splits + a prompt manifest.
+"""Assembly: gated + scored rows → bucketed, source-doc-split, training-shaped CSV splits
++ a prompt manifest.
 
 Pure functions + a thin orchestrator; the upstream load→gate→score stages prepare the rows
-(the build driver wires them, like the pilot). Two design steps that need inputs not yet
-available are explicit TODOs in `assemble()`: the held-out generator/domain OOD slice
-(design §11) and decontamination vs external benchmarks (RAID/COLING/long-form, §14).
+(the build driver wires them). Decontamination runs earlier as a pre-generation EN filter
+(decontam.py vs RAID + EditLens-test) and `assign_splits` produces the held-out ood_generator
+slice; only a held-out OOD *domain* for ja/zh-tw is left to config.
 """
 
 from __future__ import annotations
@@ -23,24 +23,20 @@ SPLITS_DIR = Path("data/v2/splits")
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 N_BUCKETS = 4
 
-# Per-language 4-bucket cuts, DERIVED from the full-build edit-cosine distribution (lo=p22, hi=p80
-# per language → consistent ~22/35/22/20 spread) + perceptually cross-checked (2026-06-25, EXPERIMENTS).
-# zh-tw edits run cold (median 0.037 vs en 0.073), so its cuts sit well below en's — not a bug.
-BUCKET_CUTS = {"en": (0.030, 0.149), "ja": (0.019, 0.111), "zh-tw": (0.015, 0.069)}
+# Per-language 4-bucket cuts: lo=p22, hi=p80 of that language's edit-cosine (Qwen3-Embedding-8B)
+# distribution → ~22/35/22/20 spread. Recompute after a registry change (v2_build.py prints the cuts).
+BUCKET_CUTS = {"en": (0.029, 0.148), "ja": (0.019, 0.111), "zh-tw": (0.018, 0.096)}
 
-# Dropped from the training/shipped view (design §4/§13): the human original the scorer
+# Dropped from the training/shipped view: the human original the scorer
 # needed, the build-only API telemetry, the cleanup review field, and the licensing tag.
 _DROP_META = ("served_tier", "finish_reason", "usage", "stripped_header", "shippable_edit")
 
 # Fallback split for a doc whose edit was gated out (most docs split by their edit's tag).
 SPLIT_RATIO = {"train": 0.8, "val": 0.1, "test": 0.1}
 
-# Held-out OOD slices (design §11) so a strong in-domain number means transfer, not memorization.
-# EN inherits EditLens's own test_llama (unseen generator) + test_enron (unseen domain). ja/zh-tw
-# hold out a LESS-IMPORTANT, CHEAP family — one the detector can afford to never train on (NOT a
-# key app-channel player like deepseek/qwen): ja=ling (cheapest, distinct, non-reasoning), zh-tw=
-# gemma (the only open model left after the mainland exclusion). A held-out *domain* for ja/zh-tw
-# costs register coverage (≈ one source per register), so it is left to config — EN's Enron covers it.
+# Held-out generators so a strong in-domain number means transfer, not memorization. EN inherits
+# EditLens's test_llama/test_enron; ja/zh-tw hold out a cheap non-critical family (ja=ling; zh-tw=gemma,
+# the only open model left after the mainland exclusion). A held-out OOD *domain* is left to config.
 OOD_GENERATOR = {"ja": "inclusionai/ling-2.6-flash", "zh-tw": "google/gemma-4-31b-it"}
 OOD_DOMAIN: dict[str, str] = {}
 
@@ -51,7 +47,7 @@ _COLUMNS = ("text_id", "text", "language", "text_type", "source", "source_id",
 def drop_unshippable_edits(rows: list[dict]) -> list[dict]:
     """Remove ai_edited rows from license-restricted (mirror-only) sources — wiki40b CC BY-SA,
     PTT unlicensed, Amazon — which generate.edit_row tags `shippable_edit=False`. They exist only
-    for scorer validation; shipping an edit is shipping a derivative the license forbids (design §4).
+    for scorer validation; shipping an edit is shipping a derivative the license forbids.
     Human + mirror rows always stay (a mirror is new work, not a derivative)."""
     return [r for r in rows
             if not (r.get("text_type") == "ai_edited"
@@ -83,9 +79,9 @@ def _fallback_split(key: tuple) -> str:
 
 
 def assign_splits(rows: list[dict]) -> list[dict]:
-    """Split by SOURCE DOC (design §14): every derivative of one human doc co-locates.
+    """Split by SOURCE DOC: every derivative of one human doc co-locates.
     Precedence: an inherited split (EN ingests EditLens's test_llama/test_enron) > held-out OOD
-    domain > held-out OOD generator (§11) > the edit's `split_tag` (keeps edit prompts disjoint
+    domain > held-out OOD generator > the edit's `split_tag` (keeps edit prompts disjoint
     → the in-domain ratio equals the edit-tag ratio) > a seeded fallback."""
     by_doc: dict[tuple, list[dict]] = defaultdict(list)
     for row in rows:
@@ -107,6 +103,50 @@ def assign_splits(rows: list[dict]) -> list[dict]:
         for row in group:
             row["split"] = split
     return rows
+
+
+_INTERNAL_SPLITS = ("train", "val", "test")  # priority order: an exact text is kept in the earliest
+
+
+def dedupe_splits(rows: list[dict]) -> tuple[list[dict], int]:
+    """Guarantee no exact text appears twice across the internal train/val/test splits.
+
+    Two *different* source docs can still render byte-identical text (shared boilerplate, a mirror
+    echoing its source) — a train↔eval leak. Keep one copy in the highest-priority split
+    (train > val > test) so eval never holds a training text. External/inherited splits (ood_*,
+    test_llama, test_enron) are disjoint eval sets → left as-is."""
+    rank = {s: i for i, s in enumerate(_INTERNAL_SPLITS)}
+    internal = sorted((r for r in rows if r.get("split") in rank), key=lambda r: rank[r["split"]])
+    external = [r for r in rows if r.get("split") not in rank]
+    seen: set[str] = set()
+    kept: list[dict] = []
+    dropped = 0
+    for row in internal:
+        text = row["text"].strip()
+        if text in seen:
+            dropped += 1
+            continue
+        seen.add(text)
+        kept.append(row)
+    return external + kept, dropped
+
+
+def dedupe_text_ids(rows: list[dict]) -> tuple[list[dict], int]:
+    """Enforce globally-unique text_id (keep first). A text_id is a stable content address, but a
+    source that re-emits the same id with an edited body (gov.taipei does for a few articles) yields
+    two rows sharing one id but differing in text — which the text-based dedupe_splits can't see.
+    Keep-first is deterministic given the stable humans→AI→ood row order."""
+    seen: set[str] = set()
+    kept: list[dict] = []
+    dropped = 0
+    for row in rows:
+        tid = row["text_id"]
+        if tid in seen:
+            dropped += 1
+            continue
+        seen.add(tid)
+        kept.append(row)
+    return kept, dropped
 
 
 def to_split_row(row: dict) -> dict:
@@ -154,16 +194,27 @@ def write_prompt_manifest(out_dir: Path = SPLITS_DIR) -> Path:
     return path
 
 
-def assemble(rows: list[dict], out_dir: Path = SPLITS_DIR) -> dict[str, int]:
-    """gated+scored rows → bucket → source-doc split (held-out OOD generator, §11) → strip →
+def assemble(rows: list[dict], out_dir: Path = SPLITS_DIR, *, drop_unshippable: bool = False) -> dict[str, int]:
+    """gated+scored rows → bucket → source-doc split (held-out OOD generator) → strip →
     write splits + manifest.
 
-    TODO before release: a held-out OOD *domain* for ja/zh-tw (config — costs register coverage),
-    and decontamination vs {EN test, RAID, COLING ja/zh, long-form} (§14, needs the external sets).
-    Near-dedup ran at gating; EN's EditLens test_llama/test_enron OOD ingest is wired in corpora."""
-    rows = drop_unshippable_edits(rows)
+    `drop_unshippable=False` is the TRAINING view: every generated row trains, including edits
+    derived from license-restricted sources — training is not redistribution. The release view
+    (`drop_unshippable=True`) removes those edits, since shipping an edit ships a derivative.
+
+    Decontam ran pre-generation (decontam.py); near-dedup ran at gating; EN's EditLens
+    test_llama/test_enron OOD ingest is wired in corpora. A held-out OOD *domain* for ja/zh-tw
+    is left to config (it costs register coverage)."""
+    if drop_unshippable:
+        rows = drop_unshippable_edits(rows)
+    rows, id_deduped = dedupe_text_ids(rows)
+    if id_deduped:
+        print(f"  dedupe: dropped {id_deduped} rows with a duplicate text_id (source re-emitted an id)")
     assign_buckets(rows)
     assign_splits(rows)
+    rows, deduped = dedupe_splits(rows)
+    if deduped:
+        print(f"  dedupe: dropped {deduped} exact-text duplicates across train/val/test")
     counts = write_splits(rows, out_dir)
     write_prompt_manifest(out_dir)
     return counts

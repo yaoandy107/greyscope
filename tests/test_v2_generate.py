@@ -6,6 +6,8 @@ markdown suppression, edit-on-source-text), and the emitted row schema incl. the
 edit-shippability licensing flag.
 """
 
+import pytest
+
 from greyscope.v2 import generate as gen
 from greyscope.v2.openrouter import ChatResult
 
@@ -27,14 +29,44 @@ def test_mainland_excluded_in_zhtw_allowed_in_en():
     assert "openai/gpt-5.5" in zhtw
     for mainland in ("qwen/qwen3.7-plus", "deepseek/deepseek-v4-pro",
                      "inclusionai/ling-2.6-flash", "moonshotai/kimi-k2.6"):
-        assert mainland not in zhtw  # bias exclusion is zh-TW-only (§5)
+        assert mainland not in zhtw  # bias exclusion is zh-TW-only
     ja = {g["slug"] for g in gen.generators_for("ja")}
     assert {"qwen/qwen3.7-plus", "deepseek/deepseek-v4-pro"} <= ja
     en = {g["slug"] for g in gen.generators_for("en")}
-    # mainland models ARE allowed in EN (no bias concern; big EN app-channel, §5)
+    # mainland models ARE allowed in EN (no bias concern; big EN app-channel)
     assert {"qwen/qwen3.7-plus", "deepseek/deepseek-v4-pro", "moonshotai/kimi-k2.6"} <= en
     assert "inclusionai/ling-2.6-flash" not in en  # ling stays ja-only
-    assert "mistralai/mistral-medium-3-5" in en and "mistralai/mistral-medium-3-5" not in (ja | zhtw)  # EN-only
+    assert "mistralai/mistral-medium-3.1" in en and "mistralai/mistral-medium-3.1" not in (ja | zhtw)  # EN-only
+    # v2.2 current-model refresh: new EN generators present; gpt-5.5 dropped from EN; tencent stays off zh-TW
+    assert {"tencent/hy3", "openai/gpt-5.6-luna", "openai/gpt-5.6-sol", "deepseek/deepseek-v4-flash"} <= en
+    assert "openai/gpt-5.5" not in en and "openai/gpt-5.5" in zhtw
+    assert "tencent/hy3" not in zhtw  # tencent = mainland → zh-TW excluded
+
+
+def test_mirror_edit_pool_decoupling():
+    # premium models are MIRROR-ONLY (edits stay cheap); cheap bulk is in both pools
+    mirror = {g["slug"] for g in gen.generators_for("en", "mirror")}
+    edit = {g["slug"] for g in gen.generators_for("en", "edit")}
+    # grok-4.5 is mirror-only too (no "off"; its "low" floor burns ~2k reasoning tokens — probe-measured)
+    premium = {"openai/gpt-5.6-sol", "anthropic/claude-sonnet-5",
+               "google/gemini-3.1-pro-preview", "x-ai/grok-4.5"}
+    assert premium <= mirror and not (premium & edit)
+    assert {"tencent/hy3", "deepseek/deepseek-v4-flash", "openai/gpt-5.6-luna"} <= (mirror & edit)
+
+
+def test_edit_pool_reasoning_is_cheap_only():
+    by_slug = {g["slug"]: g for g in gen.GENERATORS}
+
+    def labels(slug, cheap):
+        g = by_slug[slug]
+        return {gen._label_for(gen._reasoning_plan(g, "s", f"id{i}", cheap_only=cheap)) for i in range(120)}
+
+    # full pool spans graded effort; cheap_only (the edit pool) drops medium/high everywhere
+    assert labels("x-ai/grok-4.5", False) == {"low", "medium", "high"}
+    assert labels("x-ai/grok-4.5", True) == {"low"}
+    assert labels("deepseek/deepseek-v4-pro", True) == {"off"}          # on-is-high → off only
+    assert labels("openai/gpt-5.6-luna", True) <= {"minimal", "low"}    # medium dropped
+    assert labels("openai/gpt-5.6-sol", False) == {"minimal", "low"}
 
 
 def test_seeded_choice_deterministic_and_varies():
@@ -55,7 +87,7 @@ def test_reasoning_plan_samples_supported_payloads_per_model():
     assert gen._reasoning_plan(by_slug["openai/gpt-5.5"], "s", "id", "m") == {"effort": "low"}
     assert labels("openai/gpt-5.5") == {"low"}
     # geminis: minimal floor / on, NEVER off (probe HTTP 400 / silently coarsened to minimal)
-    for slug in ("google/gemini-3-flash-preview", "google/gemini-3.5-flash", "google/gemini-3.1-pro-preview"):
+    for slug in ("google/gemini-3.1-flash-lite", "google/gemini-3.5-flash", "google/gemini-3.1-pro-preview"):
         assert labels(slug) == {"minimal", "on"}
         assert all(gen._reasoning_plan(by_slug[slug], "s", f"id{i}", "m") != {"enabled": False} for i in range(120))
     # ling: non-reasoning → always None
@@ -65,9 +97,9 @@ def test_reasoning_plan_samples_supported_payloads_per_model():
     grok = labels("x-ai/grok-4.3")
     assert grok <= {"off", "low", "medium", "high"} and {"off", "low", "medium"} <= grok
     # claude toggle is OFF-leaning (premium → mostly no-think)
-    claude = [gen._label_for(gen._reasoning_plan(by_slug["anthropic/claude-sonnet-4.6"], "s", f"id{i}", "m")) for i in range(200)]
+    claude = [gen._label_for(gen._reasoning_plan(by_slug["anthropic/claude-sonnet-5"], "s", f"id{i}", "m")) for i in range(200)]
     assert claude.count("off") > 2 * claude.count("on")
-    # deepseek: real off + on-is-high (no low/medium)
+    # deepseek: real off + on-is-high (no low/medium), off-leaning
     assert labels("deepseek/deepseek-v4-pro") == {"off", "high"}
     # plain toggle (gemma): off/on both appear
     assert labels("google/gemma-4-31b-it") == {"off", "on"}
@@ -77,10 +109,28 @@ def test_reasoning_plan_samples_supported_payloads_per_model():
     assert gen._ALWAYS_LOW[0][1] == {"effort": "low"}
 
 
-def test_mirror_skipped_for_ineligible_source():
+def test_aozora_is_mirror_eligible():
+    # aozora (ja creative) mirrors via a creative-writing prompt — fills the ja creative gap.
     rec = _rec(source="aozora", language="ja", register="creative",
                source_id="work-1", text="日本語の物語の本文。" * 20)
-    assert [r.kind for r in gen.build_requests([rec])] == ["edit"]  # no mirror of a novel (§4)
+    assert [r.kind for r in gen.build_requests([rec])] == ["mirror", "edit", "edit"]
+
+
+def test_mirror_skipped_for_ineligible_source(monkeypatch):
+    monkeypatch.setattr(gen, "MIRROR_INELIGIBLE_SOURCES", {"aozora"})
+    rec = _rec(source="aozora", language="ja", register="creative",
+               source_id="work-1", text="日本語の物語の本文。" * 20)
+    assert [r.kind for r in gen.build_requests([rec])] == ["edit", "edit"]
+
+
+def test_generate_aborts_on_terminal_auth_error(monkeypatch, tmp_path):
+    # a spend-cap/credit 403 is terminal — generate() must abort, not skip into a silent gap.
+    def _boom(req):
+        raise gen.openrouter.OpenRouterAuthError("spend cap reached")
+
+    monkeypatch.setattr(gen, "run_request", _boom)
+    with pytest.raises(gen.openrouter.OpenRouterAuthError):
+        gen.generate([_rec()], tmp_path / "out.jsonl")
 
 
 def test_topic_derived_from_text_when_no_meta_topic():
@@ -91,14 +141,18 @@ def test_topic_derived_from_text_when_no_meta_topic():
     assert "今日は良い天気ですね" in out and "the subject described" not in out
 
 
-def test_build_requests_two_per_record():
+def test_build_requests_mirror_plus_edits():
     reqs = gen.build_requests([_rec()])
-    assert [r.kind for r in reqs] == ["mirror", "edit"]
-    mirror, edit = reqs
+    assert [r.kind for r in reqs] == ["mirror"] + ["edit"] * gen.EDITS_PER_DOC
+    mirror, edits = reqs[0], reqs[1:]
     assert mirror.messages[-1]["role"] == "user"
-    assert edit.messages[-1]["content"] == _rec()["text"]  # edit acts on the source text
-    assert edit.edit_prompt["prompt"] in edit.messages[0]["content"]
-    assert edit.edit_prompt["split"] in {"train", "val", "test"}
+    for edit in edits:
+        assert edit.messages[-1]["content"] == _rec()["text"]  # edit acts on the source text
+        assert edit.edit_prompt["prompt"] in edit.messages[0]["content"]
+        assert edit.edit_prompt["split"] in {"train", "val", "test"}
+    # the edits share ONE split (prompt-disjointness holds with >1 edit/doc) but use DISTINCT prompts
+    assert len({e.edit_prompt["split"] for e in edits}) == 1
+    assert len({e.edit_prompt["id"] for e in edits}) == len(edits)
 
 
 def test_humanizer_style_injects_vendored_prompt_plain_does_not():
@@ -114,7 +168,7 @@ def test_humanizer_style_injects_vendored_prompt_plain_does_not():
 
 def test_persona_committed_and_recorded_as_prompt_id():
     styles = {s["id"]: s for s in gen.load_system_styles("zh-tw")}
-    assert {"plain", "humanizer"} <= set(styles)  # design §6 backbone
+    assert {"plain", "humanizer"} <= set(styles)  # backbone
     assert "persona" in {s["family"] for s in styles.values()}  # persona committed, not gated
     req = gen.build_requests([_rec()])[0]  # the chosen style id is recorded, not a register enum
     assert req.prompt_id in styles
@@ -157,12 +211,15 @@ def test_edit_row_shippability_by_source():
     assert ptt_row["cosine_score"] is None and ptt_row["bucket"] is None  # scorer fills later
     assert ptt_row["meta"]["shippable_edit"] is False  # unlicensed source
 
-    en = _rec(language="en", source="editlens", register="news", source_id="123", text="word " * 100)
-    en_edit = gen.build_requests([en])[1]
-    assert gen.edit_row(en, en_edit, result)["meta"]["shippable_edit"] is True
+    # permissive-EN backbone: gutenberg (PD) edit ships; stackexchange (CC BY-SA share-alike) is
+    # mirror-only. Reconciled against the loaders' actual source names.
+    gut = _rec(language="en", source="gutenberg", register="creative", source_id="123", text="word " * 100)
+    assert gen.edit_row(gut, gen.build_requests([gut])[1], result)["meta"]["shippable_edit"] is True
+    se = _rec(language="en", source="stackexchange", register="casual", source_id="h1", text="word " * 100)
+    assert gen.edit_row(se, gen.build_requests([se])[1], result)["meta"]["shippable_edit"] is False
 
     # tw-gov (OGDL) ships; amazon-reviews-ja (Amazon licensing) is mirror-only — both reconciled
-    # against the loaders' actual source names (design §4 routing).
+    # against the loaders' actual source names.
     tw = _rec(language="zh-tw", source="tw-gov", register="journalistic", source_id="A1")
     assert gen.edit_row(tw, gen.build_requests([tw])[1], result)["meta"]["shippable_edit"] is True
     az = _rec(language="ja", source="amazon-reviews-ja", register="reviews", source_id="r1")

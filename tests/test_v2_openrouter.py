@@ -121,6 +121,29 @@ def test_embed_records_and_sums_actual_cost(tmp_path, monkeypatch):
     assert abs(openrouter.embedding_cost(texts) - 0.04) < 1e-9
 
 
+def test_embed_batch_retries_dataless_200(monkeypatch):
+    """A 200 whose body lacks `data` (a transient provider error) is retried, not fatal."""
+    monkeypatch.setattr(openrouter.time, "sleep", lambda *a, **k: None)
+    good = {"data": [{"index": 0, "embedding": [0.1, 0.2]}], "usage": {"cost": 0.0}}
+    responses = [{"error": {"message": "transient"}}, good]  # data-less, then good
+    calls = []
+
+    def _fake_post(client, path, body, max_retries):
+        calls.append(path)
+        return responses[len(calls) - 1]
+
+    monkeypatch.setattr(openrouter, "_post_with_retry", _fake_post)
+    vecs, cost = openrouter._embed_batch(None, "m", None, ["x"], max_retries=3)
+    assert vecs == [[0.1, 0.2]] and len(calls) == 2  # retried once past the data-less body
+
+
+def test_embed_batch_raises_after_all_dataless(monkeypatch):
+    monkeypatch.setattr(openrouter.time, "sleep", lambda *a, **k: None)
+    monkeypatch.setattr(openrouter, "_post_with_retry", lambda *a, **k: {"error": {"message": "down"}})
+    with pytest.raises(openrouter.OpenRouterError, match="no 'data'"):
+        openrouter._embed_batch(None, "m", None, ["x"], max_retries=2)
+
+
 def test_chat_does_not_cache_truncated_response(monkeypatch):
     calls = []
     truncated = {"model": "m", "choices": [{"message": {"content": "cut"}, "finish_reason": "length"}]}

@@ -191,16 +191,29 @@ def _embed_batch(
     inputs: list[str],
     max_retries: int,
 ) -> tuple[list[list[float]], float]:
-    """Returns (vectors, actual_batch_cost). Cost is OpenRouter's `usage.cost` (0.0 if unreported)."""
+    """Returns (vectors, actual_batch_cost). Cost is OpenRouter's `usage.cost` (0.0 if unreported).
+
+    Retries a 200 response that lacks `data`: the embeddings endpoint occasionally returns a transient
+    error body with a 200 status (observed mid-run), which `_post_with_retry` passes through as success —
+    without this a one-off blip would crash a whole build's scoring stage."""
     body: dict = {"model": model, "input": inputs, "encoding_format": "float", "usage": {"include": True}}
     if task_type:
         body["task_type"] = task_type  # best-effort passthrough to the provider
-    raw = _post_with_retry(client, "/embeddings", body, max_retries)
-    rows = sorted(raw["data"], key=lambda d: d["index"])
-    if len(rows) != len(inputs):  # provider returned a short batch — fail loudly
-        raise OpenRouterError(f"embeddings: requested {len(inputs)}, got {len(rows)}")
-    cost = float((raw.get("usage") or {}).get("cost") or 0.0)
-    return [row["embedding"] for row in rows], cost
+    delay = 2.0
+    last: object = None
+    for attempt in range(max_retries):
+        raw = _post_with_retry(client, "/embeddings", body, max_retries)
+        if "data" in raw:
+            rows = sorted(raw["data"], key=lambda d: d["index"])
+            if len(rows) != len(inputs):  # provider returned a short batch — fail loudly
+                raise OpenRouterError(f"embeddings: requested {len(inputs)}, got {len(rows)}")
+            cost = float((raw.get("usage") or {}).get("cost") or 0.0)
+            return [row["embedding"] for row in rows], cost
+        last = raw.get("error") or raw  # data-less 200 (transient provider error) — back off and retry
+        if attempt < max_retries - 1:
+            time.sleep(delay + random.uniform(0, delay * 0.25))
+            delay *= 2
+    raise OpenRouterError(f"embeddings: no 'data' after {max_retries} attempts: {str(last)[:200]}")
 
 
 @dataclass

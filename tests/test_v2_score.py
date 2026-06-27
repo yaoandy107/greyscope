@@ -52,3 +52,18 @@ def test_score_edited_dedups_texts_before_embedding():
     score.score_edited(rows, embed_fn=fake_embed)
     assert seen["texts"].count("same") == 1  # 3 references → embedded once
     assert sorted(seen["texts"]) == ["other", "same"]
+
+
+def test_score_edited_truncates_oversized_inputs_before_embedding():
+    # A few fineweb/gutenberg sources exceed the provider's embed input limit → truncate before send.
+    long_src = "a" * (score.EMBED_MAX_CHARS + 500)
+    seen = {}
+
+    def fake_embed(texts, model=None):
+        seen["texts"] = texts
+        return [[1.0, 0.0]] * len(texts)
+
+    rows = [{"text_type": "ai_edited", "source_text": long_src, "text": "short edit"}]
+    score.score_edited(rows, embed_fn=fake_embed)
+    assert all(len(t) <= score.EMBED_MAX_CHARS for t in seen["texts"])  # capped before the provider
+    assert rows[0]["cosine_score"] is not None  # still scored, no crash

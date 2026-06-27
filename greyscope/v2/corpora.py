@@ -1,10 +1,10 @@
-"""Human-corpus loaders for the v2 trilingual build (design §4, plan §5).
+"""Human-corpus loaders for the v2 trilingual build.
 
 One function per source → normalized `HumanRecord`s (`text_type=human_written`) with a
-**stable `source_id`** for the rebuild-from-IDs release (design §13) and `meta` for the
+**stable `source_id`** for the rebuild-from-IDs release and `meta` for the
 mirror/edit prompts.
 
-**Source-artifact normalization runs HERE, before anything else** (design §8.7): each
+**Source-artifact normalization runs HERE, before anything else**: each
 corpus carries markup the AI side never produces — wiki40b structural tokens, Aozora
 ruby/gaiji — so if it leaked, "human" would be trivially separable from the AI mirror.
 This is source-specific and lives in the loader; `preprocess.clean_text` is the later,
@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ast
 import glob
+import hashlib
 import json
 import os
 import re
@@ -29,11 +30,11 @@ from typing import Iterator
 
 from greyscope.preprocess import count_words
 
-# --- register taxonomy (design §4 matrix) -----------------------------------
+# --- register taxonomy -------------------------------------------------------
 CASUAL, REVIEWS, CREATIVE, FORMAL, JOURNALISTIC = (
     "casual", "reviews", "creative", "formal", "journalistic")
 
-# Per-source length floors (design §10): EN by words, CJK by characters, since
+# Per-source length floors: EN by words, CJK by characters, since
 # `count_words` (\b\w+\b) matches ~no CJK.
 EN_WORD_FLOOR = 75
 CJK_CHAR_FLOOR = 150
@@ -41,7 +42,7 @@ CJK_CHAR_FLOOR = 150
 HUMAN_DIR = Path("data/v2/human")
 _EDITLENS_CACHE = "~/.cache/huggingface/datasets/pangram___editlens_iclr"
 
-# EditLens sub-source → register (verified against the cached arrow, 2026-06-15).
+# EditLens sub-source → register (verified against the cached arrow).
 _EDITLENS_REGISTER = {
     "reddit_writing_prompts": CREATIVE,
     "news": JOURNALISTIC,
@@ -59,11 +60,11 @@ _AOZORA = ("globis-university/aozorabunko-clean", None)
 
 # Aozora works are whole novels (up to ~840k chars) → chunked into passages. Target is
 # comfortably above the 150-char floor (mirror-able length); the per-work cap keeps one
-# long novel (or prolific author) from dominating the creative register (design §4 diversity).
+# long novel (or prolific author) from dominating the creative register.
 AOZORA_TARGET_CHARS = 450
 AOZORA_MAX_PER_WORK = 3
 
-# PTT board → register (design §4: PTT is one multi-register source).
+# PTT board → register (PTT is one multi-register source).
 PTT_BOARDS = {
     "Gossiping": CASUAL,
     "Food": REVIEWS,
@@ -71,6 +72,27 @@ PTT_BOARDS = {
     "marvel": CREATIVE,
     "eWriter": CREATIVE,
 }
+
+# --- EN permissive sources (the EditLens-free backbone: Apache / CC0 / CC BY / PD / pragmatic) ---
+# EditLens is CC BY-NC-SA → dropped from TRAINING so the model can ship Apache-2.0 (it stays an EVAL
+# set via load_editlens_split). These replace it. Pre-2022 CommonCrawl dumps only → the "human" text
+# predates wide LLM contamination (the EN analog of the ja/zh pre-2022 rule); FineWeb exposes each
+# dump as a directly-loadable config.
+_FINEWEB = "HuggingFaceFW/fineweb"
+_FINEWEB_PRE2022_DUMPS = ("CC-MAIN-2019-18", "CC-MAIN-2020-16", "CC-MAIN-2021-17")
+_ARXIV_ABSTRACTS = ("common-pile/arxiv_abstracts", None)     # CC0
+_WIKINEWS_EN = ("Fumika/Wikinews-multilingual", None)        # CC BY 2.5 (filter lang=="en")
+_GUTENBERG = ("sedthh/gutenberg_english", None)              # public domain (residual boilerplate strip)
+_STACKEXCHANGE = ("donfu/oa-stackexchange", None)            # CC BY-SA (accepted answers <1000 chars)
+_AMAZON_EN_URL = ("https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/"
+                  "resolve/main/raw/review_categories/{cat}.jsonl")  # loader script is v4-dead → raw jsonl
+_AMAZON_EN_CATEGORIES = ("Books", "Movies_and_TV", "Kindle_Store")
+# Free permissive AI for the ai_generated bucket — NO proprietary-model provenance (both avoid it
+# by construction), so no vendor-ToS shadow. Replaces load_editlens_ai's EditLens backbone.
+_COSMOPEDIA = ("HuggingFaceTB/cosmopedia", "web_samples_v2")  # Apache-2.0, Mixtral-generated
+_HELPSTEER2 = ("nvidia/HelpSteer2", None)                     # CC BY 4.0, NVIDIA in-house models
+_FREE_AI = (("cosmopedia", _COSMOPEDIA, "text", "mistralai/Mixtral-8x7B-Instruct-v0.1"),
+            ("helpsteer2", _HELPSTEER2, "response", "nvidia/helpsteer2-mix"))
 
 
 # --- canonical record --------------------------------------------------------
@@ -81,7 +103,7 @@ class HumanRecord:
     text: str
     language: str  # "en" | "ja" | "zh-tw"
     source: str  # "editlens" | "wiki40b-ja" | "ptt" | ...
-    source_id: str  # stable addressable id for rebuild (design §13)
+    source_id: str  # stable addressable id for rebuild
     text_register: str  # casual | reviews | creative | formal | journalistic
     meta: dict = field(default_factory=dict)
 
@@ -95,15 +117,15 @@ class HumanRecord:
             "source_id": self.source_id,
             "source_text": None,  # human IS the source; mirror/edit fill this later
             "model": None,
-            "prompt_id": None,  # generation style id (design §6); n/a for human
+            "prompt_id": None,  # generation style id; n/a for human
             "markdown_mode": None,
-            "cosine_score": 0.0,  # human = 0 by class (design §7)
+            "cosine_score": 0.0,  # human = 0 by class
             "bucket": 0,
             "meta": {**self.meta, "text_register": self.text_register},
         }
 
 
-# --- source-artifact normalization (design §8.7) -----------------------------
+# --- source-artifact normalization -------------------------------------------
 _CJK_RE = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿ｦ-ﾟ]")
 _AOZORA_RUBY = re.compile(r"《[^》]*》")  # furigana readings
 _AOZORA_NOTE = re.compile(r"［＃[^］]*］")  # input notes / gaiji directives
@@ -168,6 +190,71 @@ def chunk_passages(text: str, target_chars: int, max_chunks: int) -> list[str]:
     return passages
 
 
+# --- EN source-artifact normalization (pure) ---------------------------------
+_GUTENBERG_START = re.compile(r"\*\*\*\s*START OF (?:THE|THIS) PROJECT GUTENBERG.*?\*\*\*", re.I | re.S)
+_GUTENBERG_END = re.compile(r"\*\*\*\s*END OF (?:THE|THIS) PROJECT GUTENBERG", re.I)
+
+
+def strip_gutenberg_boilerplate(text: str) -> str:
+    """Cut the PG license header/footer the AI mirror never produces (anti-confound). sedthh already
+    best-effort strips; this removes the residual `*** START/END OF … PROJECT GUTENBERG …***` frame."""
+    m = _GUTENBERG_START.search(text)
+    if m:
+        text = text[m.end():]
+    m = _GUTENBERG_END.search(text)
+    if m:
+        text = text[:m.start()]
+    return text.strip()
+
+
+def first_passage_en(text: str, target_words: int = 300, skip_paragraphs: int = 3,
+                     max_chars: int = 4000) -> str:
+    """One representative passage from a whole book: skip front matter, accumulate paragraphs to
+    ~`target_words`. One passage per book (source_id-stable) — 48k books far exceed the row need,
+    so multi-chunking a single work (Aozora's problem) is unnecessary here. The hard `max_chars`
+    cap is load-bearing: a book with no blank-line paragraph breaks collapses to one giant block, so
+    without it a whole 150k-char work would leak through as a single 'passage'."""
+    paras = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()][skip_paragraphs:]
+    buffer: list[str] = []
+    words = 0
+    for para in paras:
+        buffer.append(para)
+        words += len(para.split())
+        if words >= target_words:
+            break
+    return "\n\n".join(buffer)[:max_chars]
+
+
+def join_paragraphs(value) -> str:
+    """Wikinews `text` arrives as a paragraph sequence (list) or a flat string → one body."""
+    if isinstance(value, (list, tuple)):
+        return "\n".join(str(p) for p in value if p).strip()
+    return (value or "").strip()
+
+
+def parse_blob_meta(raw) -> dict:
+    """Best-effort parse of a serialized-dict metadata blob (Gutenberg METADATA): dict → as-is,
+    else try JSON then Python-literal, else {}. Never raises (feeds source_id/title, not correctness)."""
+    if isinstance(raw, dict):
+        return raw
+    if not isinstance(raw, str) or not raw.strip():
+        return {}
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        pass
+    try:
+        parsed = ast.literal_eval(raw)
+        return parsed if isinstance(parsed, dict) else {}
+    except (ValueError, SyntaxError):
+        return {}
+
+
+def _text_hash(text: str) -> str:
+    """Stable 16-hex content id for sources that expose no row id (SE, free-AI corpora)."""
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()[:16]
+
+
 # --- loaders -----------------------------------------------------------------
 def _read_editlens_arrow(split: str):
     import pyarrow as pa
@@ -190,7 +277,7 @@ def _read_editlens_arrow(split: str):
 
 def load_editlens(*, split: str = "train", limit: int | None = None) -> list[HumanRecord]:
     """EN backbone (reused, free). Human rows from the cached EditLens arrow; the
-    sub-`source` maps to register (design §4 matrix)."""
+    sub-`source` maps to register."""
     import pyarrow.compute as pc
 
     table = _read_editlens_arrow(split)
@@ -217,10 +304,10 @@ def load_editlens(*, split: str = "train", limit: int | None = None) -> list[Hum
 
 
 def load_editlens_split(split: str) -> list[dict]:
-    """Ingest an EditLens eval split AS-IS (all 3 classes) for the EN OOD slice (design §11):
+    """Ingest an EditLens eval split AS-IS (all 3 classes) for the EN OOD slice:
     `test_llama` = held-out generator, `test_enron` = held-out domain. Keeps EditLens's own
     labels (text_type, cosine_score) and tags `split` so assembly reserves it untouched.
-    (cosine is Linq-scale; an optional Qwen re-score would harmonize it — pilot showed ≈ parity.)"""
+    (cosine is Linq-scale; an optional Qwen re-score would harmonize it — measured ≈ parity.)"""
     table = _read_editlens_arrow(split)
     cols = {c: table.column(c).to_pylist()
             for c in ("text", "text_type", "source", "source_id", "model", "cosine_score")}
@@ -239,6 +326,35 @@ def load_editlens_split(split: str) -> list[dict]:
             "meta": {"editlens_source": cols["source"][i], "editlens_split": split},
         })
     return out
+
+
+def load_editlens_ai(*, limit: int | None = None, split: str = "train") -> list[dict]:
+    """EN backbone AI (free, cached): EditLens's own ai_generated + ai_edited rows. `load_editlens`
+    loads only humans, which leaves EN AI-starved vs v1 (trained on EditLens's full, AI-heavy set);
+    this restores it. `limit=None` takes all (~41k); an int caps to a balanced `limit//2` per class.
+    ai_generated → cosine 1.0 by class; ai_edited keeps EditLens's cosine (Linq-scale, which the EN cut
+    matches). No split tag → assembled into train/val/test by source-doc."""
+    table = _read_editlens_arrow(split)
+    cols = {c: table.column(c).to_pylist()
+            for c in ("text", "text_type", "source", "source_id", "model", "cosine_score")}
+    by_type: dict[str, list[dict]] = {"ai_generated": [], "ai_edited": []}
+    for i, text in enumerate(cols["text"]):
+        text_type = cols["text_type"][i]
+        if text_type not in by_type or not passes_floor(text, "en"):
+            continue
+        by_type[text_type].append({
+            "text_id": f"en/editlens/{cols['source_id'][i]}/{text_type}/backbone",
+            "text": text, "language": "en", "text_type": text_type,
+            "source": "editlens", "source_id": str(cols["source_id"][i]), "source_text": None,
+            "model": cols["model"][i], "prompt_id": None, "markdown_mode": None,
+            "cosine_score": 1.0 if text_type == "ai_generated" else cols["cosine_score"][i],
+            "bucket": None,
+            "meta": {"editlens_source": cols["source"][i], "backbone": True},
+        })
+    if limit is None:
+        return by_type["ai_generated"] + by_type["ai_edited"]
+    per_type = limit // 2
+    return by_type["ai_generated"][:per_type] + by_type["ai_edited"][:per_type]
 
 
 def _iter_hf(path: str, config: str | None, split: str) -> Iterator[dict]:
@@ -264,7 +380,7 @@ def _as_str(value) -> str:
 
 def load_wiki40b(language: str, *, limit: int | None = None) -> list[HumanRecord]:
     """Formal-factual ja / zh-TW (pre-2020 snapshot). Strips wiki40b markers; pins
-    the revision via `version_id` (design §4 date-pin, §13 rebuild)."""
+    the revision via `version_id` (date-pin for rebuild)."""
     path, config = _WIKI40B[language]
     source = f"wiki40b-{language}"
     out: list[HumanRecord] = []
@@ -291,7 +407,7 @@ def load_amazon_reviews_ja(*, limit: int | None = None) -> list[HumanRecord]:
     """ja reviews (`SetFit/amazon_reviews_multi_ja`, 2015–2019 → pre-2022; replaces the dead
     JGLUE MARC-ja loading script). A minor slice — reviews skew short, so only ~12% clear the
     150-CJK floor, but the 200k corpus still yields plenty. Amazon withdrew MARC redistribution
-    → treat as **mirror-only**, NOT edited (design §4 routing). `source_id` = the review id (§13)."""
+    → treat as **mirror-only**, NOT edited. `source_id` = the review id."""
     out: list[HumanRecord] = []
     for i, ex in enumerate(_iter_hf(*_AMAZON_JA, "train")):
         text = ex.get("text") or ""
@@ -311,8 +427,7 @@ def load_amazon_reviews_ja(*, limit: int | None = None) -> list[HumanRecord]:
 
 
 def load_open2ch(*, limit: int | None = None) -> list[HumanRecord]:
-    """ja casual/forum (Apache-2.0) — the ja analog to PTT, pilot go/no-go on
-    yield + naturalness (design §4). 2ch-derived → short turns; the 150-char floor
+    """ja casual/forum (Apache-2.0) — the ja analog to PTT. 2ch-derived → short turns; the 150-char floor
     drops most, so a thread's turns are joined into a passage before the floor."""
     out: list[HumanRecord] = []
     for i, ex in enumerate(_iter_hf(*_OPEN2CH, "train")):
@@ -335,7 +450,7 @@ def load_open2ch(*, limit: int | None = None) -> list[HumanRecord]:
 def _open2ch_passage(ex: dict) -> str:
     """Join a thread's turns into one passage. open2ch rows are
     `dialogue={speaker:[...], content:[...]}` — typically just 2 short turns, so most
-    fall under the 150-char floor (the pilot go/no-go signal, design §4)."""
+    fall under the 150-char floor."""
     dialogue = ex.get("dialogue")
     if isinstance(dialogue, dict) and isinstance(dialogue.get("content"), list):
         return "\n".join(c for c in dialogue["content"] if c)
@@ -349,10 +464,10 @@ def load_aozora(
     max_per_work: int = AOZORA_MAX_PER_WORK,
 ) -> list[HumanRecord]:
     """ja creative (Aozora Bunko, public-domain; `globis-university/aozorabunko-clean` is
-    CC BY 4.0 → edited-OK, design §4 licensing routing). Modern orthography only (新字新仮名 —
+    CC BY 4.0 → edited-OK). Modern orthography only (新字新仮名 —
     classical 旧字旧仮名 is the wrong distribution for a modern detector). Whole works are
     chunked into passages (the source pre-strips ruby; `strip_aozora_markup` runs as a safety
-    no-op). `source_id = {作品ID}#p{n}` is stable for the rebuild-from-IDs release (design §13)."""
+    no-op). `source_id = {作品ID}#p{n}` is stable for the rebuild-from-IDs release."""
     out: list[HumanRecord] = []
     for ex in _iter_hf(*_AOZORA, "train"):
         meta = ex.get("meta") or {}
@@ -384,9 +499,9 @@ def load_aozora(
 
 def load_wikinews_ja(*, limit: int | None = None) -> list[HumanRecord]:
     """ja journalistic (Japanese Wikinews, CC BY 4.0 → edited-OK — the permissive ja
-    journalistic source, design §4 routing). Pre-2022 articles only; the 【…】 dateline is
-    stripped at the scraper (anti-confound, §8.7). `source_id = {pageid}@{revid}` for the
-    rebuild (§13). Lazy-imports the scraper so the EN/HF loaders stay free of httpx/bs4."""
+    journalistic source). Pre-2022 articles only; the 【…】 dateline is
+    stripped at the scraper (anti-confound). `source_id = {pageid}@{revid}` for the
+    rebuild. Lazy-imports the scraper so the EN/HF loaders stay free of httpx/bs4."""
     from greyscope.v2 import wikinews
 
     out: list[HumanRecord] = []
@@ -415,7 +530,7 @@ def load_ptt(
     limit_per_board: int = 50,
     year_range: tuple[int, int] = (2015, 2019),
 ) -> list[HumanRecord]:
-    """zh-TW casual + reviews + creative from PTT (design §4). One source, one
+    """zh-TW casual + reviews + creative from PTT. One source, one
     license/ID story across boards; pre-2022 only. Lazy-imports the scraper so the
     EN/HF loaders stay free of httpx/bs4."""
     from greyscope.v2 import ptt
@@ -439,9 +554,9 @@ def load_ptt(
 
 def load_twgov(*, limit: int | None = None) -> list[HumanRecord]:
     """zh-TW journalistic (Taipei City gov press-release archive, OGDL/公眾授權 → edited-OK —
-    the native Taiwan-Traditional journalistic source, design §4 routing). Pre-2022 only (the
+    the native Taiwan-Traditional journalistic source). Pre-2022 only (the
     open-data feeds are rolling/current, so this scrapes the dated archive). `source_id` = the
-    article id for the rebuild (§13). Lazy-imports the scraper so the HF loaders stay httpx-free."""
+    article id for the rebuild. Lazy-imports the scraper so the HF loaders stay httpx-free."""
     from greyscope.v2 import twgov
 
     out: list[HumanRecord] = []
@@ -464,11 +579,182 @@ def load_twgov(*, limit: int | None = None) -> list[HumanRecord]:
     return out
 
 
-def write_jsonl(records: list[HumanRecord], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as fh:
-        for record in records:
-            fh.write(json.dumps(record.to_row(), ensure_ascii=False) + "\n")
+# --- EN permissive human loaders (EditLens-free backbone) --------------------
+def load_fineweb_en(*, limit: int | None = None,
+                    dumps: tuple[str, ...] = _FINEWEB_PRE2022_DUMPS) -> list[HumanRecord]:
+    """EN formal-web (ODC-BY). Pre-2022 CommonCrawl snapshots ONLY (each `dump` is a config) so the
+    'human' text predates wide LLM contamination. Round-robins the dumps for temporal spread;
+    `source_id` = the CC record id (stable for rebuild)."""
+    out: list[HumanRecord] = []
+    per_dump = None if limit is None else max(1, limit // len(dumps))
+    for dump in dumps:
+        got = 0
+        for ex in _iter_hf(_FINEWEB, dump, "train"):
+            # Full pages run to ~80k chars; cap to a passage so EN human docs stay comparable to the
+            # other sources (and never blow the embedder input at edit-scoring time).
+            body = (ex.get("text") or "").strip()[:6000]
+            if not passes_floor(body, "en"):
+                continue
+            out.append(HumanRecord(
+                text=body, language="en", source="fineweb", source_id=str(ex.get("id")),
+                text_register=FORMAL,
+                meta={"dump": dump, "url": ex.get("url"), "date": str(ex.get("date"))[:10],
+                      "length": len(body)},
+            ))
+            got += 1
+            if limit is not None and len(out) >= limit:
+                return out
+            if per_dump is not None and got >= per_dump:
+                break
+    return out
+
+
+def load_arxiv_abstracts_en(*, limit: int | None = None) -> list[HumanRecord]:
+    """EN formal-academic (CC0 — the cleanest license in the set). arXiv abstracts via common-pile
+    (parquet-native). `source_id` = the arXiv id."""
+    out: list[HumanRecord] = []
+    for ex in _iter_hf(*_ARXIV_ABSTRACTS, "train"):
+        body = (ex.get("text") or "").strip()
+        if not passes_floor(body, "en"):
+            continue
+        out.append(HumanRecord(
+            text=body, language="en", source="arxiv-abstracts", source_id=str(ex.get("id")),
+            text_register=FORMAL,
+            meta={"created": str(ex.get("created"))[:10], "length": len(body)},
+        ))
+        if limit is not None and len(out) >= limit:
+            break
+    return out
+
+
+def load_wikinews_en(*, limit: int | None = None) -> list[HumanRecord]:
+    """EN journalistic (CC BY 2.5 → edited-OK — the permissive EN journalistic source). Fumika's
+    multilingual Wikinews, `lang=="en"`; `text` is a paragraph sequence → joined. Pre-LLM vintage
+    (guaranteed human). `source_id` = pageid."""
+    out: list[HumanRecord] = []
+    for ex in _iter_hf(*_WIKINEWS_EN, "train"):
+        if ex.get("lang") != "en":
+            continue
+        body = join_paragraphs(ex.get("text"))
+        if not passes_floor(body, "en"):
+            continue
+        out.append(HumanRecord(
+            text=body, language="en", source="wikinews-en", source_id=str(ex.get("pageid")),
+            text_register=JOURNALISTIC,
+            meta={"topic": ex.get("title"), "date": str(ex.get("date"))[:10], "length": len(body)},
+        ))
+        if limit is not None and len(out) >= limit:
+            break
+    return out
+
+
+def load_gutenberg_en(*, limit: int | None = None, target_words: int = 300) -> list[HumanRecord]:
+    """EN creative (public domain → edited-OK). sedthh/gutenberg_english; strips the residual PG
+    boilerplate (anti-confound) then takes one passage per book. `source_id` = the parsed Gutenberg
+    id (falls back to a content hash). Columns are UPPERCASE (TEXT/METADATA)."""
+    out: list[HumanRecord] = []
+    for ex in _iter_hf(*_GUTENBERG, "train"):
+        meta = parse_blob_meta(ex.get("METADATA"))
+        if meta.get("language") not in (None, "en"):  # gutenberg_english is EN, but guard defensively
+            continue
+        body = strip_gutenberg_boilerplate(_as_str(ex.get("TEXT")))
+        passage = first_passage_en(body, target_words)
+        if not passes_floor(passage, "en"):
+            continue
+        gid = meta.get("text_id")  # the Gutenberg book id (stable for the rebuild)
+        out.append(HumanRecord(
+            text=passage, language="en", source="gutenberg",
+            source_id=str(gid) if gid is not None else _text_hash(passage), text_register=CREATIVE,
+            meta={"topic": meta.get("title", ""), "issued": str(meta.get("issued"))[:10],
+                  "length": len(passage)},
+        ))
+        if limit is not None and len(out) >= limit:
+            break
+    return out
+
+
+def _iter_amazon_en(category: str) -> Iterator[dict]:
+    from datasets import load_dataset
+
+    yield from load_dataset("json", data_files=_AMAZON_EN_URL.format(cat=category),
+                            split="train", streaming=True)
+
+
+def load_amazon_reviews_en(*, limit: int | None = None,
+                           categories: tuple[str, ...] = _AMAZON_EN_CATEGORIES) -> list[HumanRecord]:
+    """EN reviews (Amazon Reviews 2023, McAuley Lab; no redistribution grant → mirror-only, like
+    amazon-reviews-ja). Streams the raw per-category JSONL (the HF loader script is v4-dead).
+    `source_id` = parent_asin/user_id."""
+    out: list[HumanRecord] = []
+    per_cat = None if limit is None else max(1, limit // len(categories))
+    for category in categories:
+        got = 0
+        for ex in _iter_amazon_en(category):
+            body = (ex.get("text") or "").strip()
+            if not passes_floor(body, "en"):
+                continue
+            out.append(HumanRecord(
+                text=body, language="en", source="amazon-reviews-en",
+                source_id=f"{ex.get('parent_asin')}/{ex.get('user_id')}", text_register=REVIEWS,
+                meta={"rating": ex.get("rating"), "category": category, "length": len(body)},
+            ))
+            got += 1
+            if limit is not None and len(out) >= limit:
+                return out
+            if per_cat is not None and got >= per_cat:
+                break
+    return out
+
+
+def load_stackexchange_en(*, limit: int | None = None) -> list[HumanRecord]:
+    """EN casual/Q&A (Stack Exchange, CC BY-SA → mirror-only like the other share-alike sources).
+    donfu/oa-stackexchange: accepted answers <1000 chars; the ANSWER (RESPONSE) is the human text.
+    `source_id` = a stable content hash (the set exposes no row id). Columns are UPPERCASE."""
+    out: list[HumanRecord] = []
+    for ex in _iter_hf(*_STACKEXCHANGE, "train"):
+        body = (ex.get("RESPONSE") or "").strip()
+        if not passes_floor(body, "en"):
+            continue
+        out.append(HumanRecord(
+            text=body, language="en", source="stackexchange", source_id=_text_hash(body),
+            text_register=CASUAL,
+            meta={"site": ex.get("SOURCE"), "question": (ex.get("INSTRUCTION") or "")[:200],
+                  "length": len(body)},
+        ))
+        if limit is not None and len(out) >= limit:
+            break
+    return out
+
+
+def load_free_ai_en(*, limit: int | None = None) -> list[dict]:
+    """EN ai_generated rows from PERMISSIVE synthetic corpora — Cosmopedia (Apache-2.0, Mixtral) +
+    HelpSteer2 (CC BY 4.0, NVIDIA models). Neither carries proprietary-model provenance. These are
+    standalone AI text → cosine 1.0 / bucket 3, straight into assembly (bypass gen/gate/score), the
+    permissive replacement for `load_editlens_ai`. `limit=None` takes all; an int caps `limit//2`
+    per source."""
+    out: list[dict] = []
+    per_source = None if limit is None else max(1, limit // len(_FREE_AI))
+    for source, (path, config), text_col, model in _FREE_AI:
+        got = 0
+        for ex in _iter_hf(path, config, "train"):
+            body = (ex.get(text_col) or "").strip()
+            if not passes_floor(body, "en"):
+                continue
+            sid = _text_hash(body)
+            out.append({
+                "text_id": f"en/{source}/{sid}/ai_generated/backbone",
+                "text": body, "language": "en", "text_type": "ai_generated",
+                "source": source, "source_id": sid, "source_text": None,
+                "model": model, "prompt_id": None, "markdown_mode": None,
+                "cosine_score": 1.0, "bucket": None,
+                "meta": {"backbone": True, "free_ai": True, "length": len(body)},
+            })
+            got += 1
+            if limit is not None and len(out) >= limit:
+                return out
+            if per_source is not None and got >= per_source:
+                break
+    return out
 
 
 if __name__ == "__main__":  # zero-dep smoke: the EN loader runs off the cached arrow
