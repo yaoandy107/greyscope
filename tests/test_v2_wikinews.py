@@ -22,7 +22,7 @@ def test_extract_body_joins_paragraphs_and_strips_dateline():
         "</div>"
     )
     body = extract_body(html)
-    assert "【2008年2月3日】" not in body          # dateline source-artifact stripped (§8.7)
+    assert "【2008年2月3日】" not in body          # dateline source-artifact stripped
     assert "岩波書店は第六版を発売した。" in body
     assert "累計1100万部を誇る。" in body
     assert "J-CAST" not in body and "出典" not in body  # sources boilerplate excluded

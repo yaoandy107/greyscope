@@ -1,15 +1,15 @@
-"""Quality gates for generated/edited samples (design §8, plan §7).
+"""Quality gates for generated/edited samples.
 
 Each per-sample gate returns keep/drop + reason; `run_gates` applies them, then a
 within-`text_type` near-dedup, logging every drop with its reason. Gates are
 **asymmetric**: human rows are real and bypass the AI-output checks; length-match +
 regurgitation apply only to MIRRORS (an edit is *meant* to track its source).
-**Formatting is NOT gated** — it is signal, not noise (design §9).
+**Formatting is NOT gated** — it is signal, not noise.
 
 The zh-TW script check uses a lightweight unambiguous-Simplified-character ratio —
 enough to catch the "wholesale wrong variety" this gate drops and to report the rate
-the pilot needs (§11). The finer *lexical* mainland-vocab MONITOR (OpenCC s2twp,
-§8.2) is a full-build addition — deferred until that feature exists (the pilot needs
+the build needs. The finer *lexical* mainland-vocab MONITOR (OpenCC s2twp) is a
+full-build addition — deferred until that feature exists (the build needs
 the character rate, not the word-choice lexicon).
 """
 
@@ -30,18 +30,18 @@ _SIMPLIFIED_ONLY = frozenset(
 )
 SIMPLIFIED_DROP_RATIO = 0.05  # >5% Simplified-only chars ⇒ wrong variety (drop)
 
-# Length-match band for a mirror vs its source (design §8): generous — the mirror is
+# Length-match band for a mirror vs its source: generous — the mirror is
 # length-guided, not length-clamped.
 LENGTH_MIN_RATIO, LENGTH_MAX_RATIO = 0.33, 3.0
 
-# Regurgitation: a shared exact n-gram this long ⇒ pretraining-memorized copy (§8.8).
+# Regurgitation: a shared exact n-gram this long ⇒ pretraining-memorized copy.
 _REGURGITATION_N = {"en": 15, "ja": 30, "zh-tw": 30}  # words (EN) / chars (CJK)
 # Near-dedup within text_type: shingle size + Jaccard cutoff.
 _DEDUP_N = {"en": 5, "ja": 10, "zh-tw": 10}
 DEDUP_THRESHOLD = 0.8
 
 # A refusal = the model declining the task (drop the row). VERB-anchored so positive content
-# ("I can't recommend it enough", "我慢できません", "抱歉這麼晚才推薦") is NOT a false hit (§8.3).
+# ("I can't recommend it enough", "我慢できません", "抱歉這麼晚才推薦") is NOT a false hit.
 # Leading chat-wrappers are stripped at row shaping (generate._strip_ai_header), not gated here.
 _REFUSALS = (
     "i can't help", "i cannot help", "i can't assist", "i cannot assist",
@@ -108,7 +108,7 @@ def simplified_ratio(text: str) -> float:
 
 def gate_script(row: dict) -> GateResult:
     """zh-TW AI output in wholesale-Simplified is the wrong variety → drop. Human
-    zh-TW is kept as-is (natural Simplified mixing happens, design §8.1)."""
+    zh-TW is kept as-is (natural Simplified mixing happens)."""
     if not (_is_ai(row) and row["language"] == "zh-tw"):
         return _KEEP
     if simplified_ratio(row["text"]) > SIMPLIFIED_DROP_RATIO:
@@ -132,7 +132,7 @@ def gate_length_match(row: dict) -> GateResult:
 
 def gate_regurgitation(row: dict) -> GateResult:
     """Mirror only: a long EXACT n-gram shared with the source is a memorized copy
-    that reads as human (design §8.8). Distinct from near-dedup; topical overlap is
+    that reads as human. Distinct from near-dedup; topical overlap is
     fine. An edit derives from its source by design, so it is exempt."""
     if row["text_type"] != "ai_generated" or not row.get("source_text"):
         return _KEEP
@@ -143,9 +143,20 @@ def gate_regurgitation(row: dict) -> GateResult:
     return _KEEP
 
 
+def gate_noop_edit(row: dict) -> GateResult:
+    """Edit only: an edit that returned the source verbatim did no editing — a wasted
+    generation that would land as a bucket-0 `ai_edited` twin of the very human row it
+    derives from. Drop it (that text already ships as the human row, at bucket 0)."""
+    if row["text_type"] != "ai_edited" or not row.get("source_text"):
+        return _KEEP
+    if row["text"].strip() == row["source_text"].strip():
+        return GateResult(False, "noop_edit")
+    return _KEEP
+
+
 PER_SAMPLE_GATES = (
     gate_nonempty, gate_truncated, gate_refusal,
-    gate_script, gate_length_match, gate_regurgitation,
+    gate_script, gate_length_match, gate_regurgitation, gate_noop_edit,
 )
 
 
@@ -158,8 +169,8 @@ def _jaccard(a: set, b: set) -> float:
 
 def near_dedup(rows: list[dict]) -> tuple[list[dict], list[dict]]:
     """Drop near-duplicates WITHIN (language, text_type) — never across types, which
-    would flag the deliberate human↔edited near-paraphrase pairs (design §8). Keeps
-    the first occurrence; greedy shingle-Jaccard (fine at pilot scale). Texts too short
+    would flag the deliberate human↔edited near-paraphrase pairs. Keeps
+    the first occurrence; greedy shingle-Jaccard (fine at this scale). Texts too short
     to shingle fall back to exact-match (else two identical short outputs both survive)."""
     kept: list[dict] = []
     dropped: list[dict] = []
@@ -184,7 +195,7 @@ def near_dedup(rows: list[dict]) -> tuple[list[dict], list[dict]]:
 
 def run_gates(rows: list[dict]) -> tuple[list[dict], list[dict]]:
     """Apply per-sample gates then near-dedup. Returns (kept, dropped); each dropped
-    row carries a `drop_reason` for `drops.jsonl` + the pilot's gate-firing report."""
+    row carries a `drop_reason` for `drops.jsonl` + the build's gate-firing report."""
     survivors: list[dict] = []
     dropped: list[dict] = []
     for row in rows:

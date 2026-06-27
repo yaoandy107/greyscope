@@ -1,4 +1,4 @@
-"""PTT (批踢踢實業坊) scraper for the v2 zh-TW human corpus (design §4, plan §5).
+"""PTT (批踢踢實業坊) scraper for the v2 zh-TW human corpus.
 
 PTT is one MULTI-REGISTER source: casual (Gossiping), reviews (Food / MobileComm),
 creative (marvel / eWriter / Fiction). Same fetch/parse/ID story for every board, so
@@ -6,9 +6,9 @@ creative (marvel / eWriter / Fiction). Same fetch/parse/ID story for every board
 
 Reproducibility + contamination defense:
 - The post id `M.<unixtime>.A.<hash>` embeds the exact post time → we keep **pre-2022**
-  only (the contamination defense, design §4) and **binary-search** the index by date
+  only (the contamination defense) and **binary-search** the index by date
   instead of walking thousands of pages back from today.
-- The id is the **stable addressable id** for the rebuild-from-IDs release (design §13);
+- The id is the **stable addressable id** for the rebuild-from-IDs release;
   PTT is unlicensed user text → **human + mirror only**, never an edited derivative.
 - Every page is cached to disk by URL hash → re-runs never re-fetch, and the scrape is
   resumable (the design's "cache every response" principle).
@@ -71,7 +71,7 @@ def parse_index(html: str) -> tuple[list[str], str | None]:
 def parse_article(html: str, post_id: str) -> dict | None:
     """An article page → {post_id, title, body}, or None if deleted/empty. Strips the
     metalines, push comments, and the `※ 發信站` signature/edit trailer so `body` is the
-    human-written passage only (source-artifact normalization, design §8.7)."""
+    human-written passage only (source-artifact normalization)."""
     soup = BeautifulSoup(html, "html.parser")
     main = soup.select_one("#main-content")
     if main is None:

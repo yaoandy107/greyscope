@@ -1,5 +1,5 @@
-"""Decontamination: scrub EN training humans of overlap with the benchmarks we report on
-(design §14.2). Runs as a **pre-generation filter on the human pool** — a contaminated human
+"""Decontamination: scrub EN training humans of overlap with the benchmarks we report on.
+Runs as a **pre-generation filter on the human pool** — a contaminated human
 poisons its mirror+edit too, so dropping it before generation keeps the ~$50 spend on clean
 docs and makes the splits leak-free by construction.
 
@@ -7,12 +7,13 @@ docs and makes the splits leak-free by construction.
 Aozora / Wikinews / open2ch) sources are disjoint from the public MGT benchmarks by construction
 — RAID is EN/cs/de, and M4/M4GT's only Chinese data is Simplified QA (no Chinese Wikipedia). No
 public eval shares those sources, so there is nothing external to scrub; zh/ja eval integrity
-rests on the internal held-out generator/domain slices (§11), not external decontam. EN is the
+rests on the internal held-out generator/domain slices, not external decontam. EN is the
 exception: EditLens humans (news/reviews/reddit/web) plausibly share English web sources with
 RAID, AND we submit to RAID at release — so train∩RAID would inflate the headline number.
 
 Method = canonical word-n-gram containment (GPT-3/Pile style). The reference is the union of
-RAID human texts + EditLens's held-out test humans; a candidate sharing ≥`MIN_SHARED` distinct
+RAID human texts + EditLens's held-out test humans + Beemo (an edited-MGT eval benchmark now that
+the permissive-EN backbone replaced EditLens training); a candidate sharing ≥`MIN_SHARED` distinct
 13-grams with it is dropped. Two distinct 13-grams (~14–26 verbatim words) effectively never
 coincide between independent texts, and humans are the free FPR base, so we favor dropping.
 
@@ -41,11 +42,9 @@ K_EN = 13          # the canonical decontamination shingle: 13 words (GPT-3/The 
 MIN_SHARED = 2     # ≥2 distinct shared 13-grams ⇒ real reuse, not coincidence (favor dropping)
 
 # RAID's NON-ADVERSARIAL train_none.csv from its CDN (~0.76GB) vs the 11.8GB adversarial train.csv on
-# HF: ~15× smaller (no 12× attack bloat → humans are dense) AND fetched to disk WITH RESUME — the HF
-# range-stream died on a flaky-WiFi mid-read with no recovery; a download resumes from the bytes
-# already saved, then filtering runs locally with no network. Only `train` is usable: RAID hides the
-# test labels for its leaderboard (test_none.csv is just id+generation, no `model`), and train humans
-# cover the same domains/sources anyway.
+# HF: ~15× smaller (no attack bloat → humans are dense) and fetched to disk WITH RESUME (a dropped
+# connection resumes from saved bytes), then filtered locally. Only `train` is usable: RAID hides the
+# test labels (test_none.csv is id+generation, no `model`), and train humans cover the same sources.
 _RAID_CDN = "https://dataset.raid-bench.xyz"
 _RAID_NONE_FILES = {"train": "train_none.csv"}
 # Czech/German/code domains live only in RAID's `extra` split, so train is EN-only; the denylist is a
@@ -53,6 +52,7 @@ _RAID_NONE_FILES = {"train": "train_none.csv"}
 _RAID_NON_EN_DOMAINS = frozenset({"czech_news", "german_news", "code"})
 _RAID_SPLITS = ("train",)
 _EDITLENS_TEST_SPLITS = ("test_llama", "test_enron")
+_BEEMO = ("toloka/beemo", None)  # eval benchmark (edited MGT) → scrub train humans overlapping human_output
 
 _WORD = re.compile(r"\w+", re.UNICODE)
 
@@ -220,15 +220,30 @@ def _editlens_test_humans() -> list[str]:
     return out
 
 
+def _beemo_humans() -> list[str]:
+    """Beemo `human_output` texts for the reference — Beemo is an EVAL benchmark (edited MGT), so a
+    train human overlapping it would leak. Used only as an n-gram exclusion hash, never redistributed
+    (Beemo's human layer is CC-BY-NC). Best-effort: a load blip leaves the RAID+EditLens reference intact."""
+    from greyscope.v2.corpora import _iter_hf
+
+    try:
+        return [t for ex in _iter_hf(*_BEEMO, "train")
+                if (t := (ex.get("human_output") or "").strip())]
+    except Exception as exc:  # noqa: BLE001 — an add-on safety net must never abort the build
+        print(f"    [decontam] beemo skipped ({type(exc).__name__}) — RAID+EditLens reference stands")
+        return []
+
+
 @lru_cache(maxsize=1)
 def english_reference(*, raid_limit: int | None = None) -> frozenset:
-    """Union n-gram reference of {RAID train humans + EditLens held-out test humans}.
+    """Union n-gram reference of {RAID train humans + EditLens held-out test + Beemo humans}.
     Cached per process; the RAID extraction is itself disk-cached, so re-runs are cheap."""
-    texts = list(_editlens_test_humans())
+    non_raid = list(_editlens_test_humans()) + list(_beemo_humans())
+    texts = list(non_raid)
     raid = 0
     for split in _RAID_SPLITS:
         split_texts = extract_raid_humans(split, limit=raid_limit)
         texts += split_texts
         raid += len(split_texts)
-    print(f"    [decontam] EN reference: {raid:,} RAID + {len(texts) - raid:,} EditLens-test humans")
+    print(f"    [decontam] EN reference: {raid:,} RAID + {len(non_raid):,} EditLens-test + Beemo humans")
     return frozenset(build_reference(texts))

@@ -1,15 +1,15 @@
-"""Japanese Wikinews scraper for the v2 ja journalistic corpus (design §4, plan §5).
+"""Japanese Wikinews scraper for the v2 ja journalistic corpus.
 
 ja has no clean HF full-article Wikinews source (`malteos/wikinews` omits ja), so this pulls
 from the MediaWiki API the way `ptt.py` pulls PTT: pure parsers + a cached, polite `_get_json`.
 
-Reproducibility + contamination defense (design §4, §13):
+Reproducibility + contamination defense:
 - Each article is pinned to its **last revision before 2022** (the `rvstart` cutoff → AI-free),
   and the 【YYYY年MM月DD日】 dateline (true publication date) must also be pre-2022.
-- `source_id = {pageid}@{revid}` is the stable rebuild id (design §13). Wikinews is CC BY → the
-  permissive ja journalistic source, so it feeds human + mirror + **edited** (design §4 routing).
+- `source_id = {pageid}@{revid}` is the stable rebuild id. Wikinews is CC BY → the
+  permissive ja journalistic source, so it feeds human + mirror + **edited**.
 - The 【…】 dateline is a Wikinews source-artifact the AI side never produces → stripped from the
-  body after the date is read off it (anti-confound, design §8.7).
+  body after the date is read off it (anti-confound).
 - Every API response is cached by request hash → re-runs never re-fetch (resumable scrape).
 
 The pure parsers (`parse_dateline`, `extract_body`) take text/HTML and are unit-tested; only
@@ -32,7 +32,7 @@ API_URL = "https://ja.wikinews.org/w/api.php"
 CACHE_DIR = Path("data/v2/cache/wikinews-ja")
 _HEADERS = {"User-Agent": "greyscope-v2 dataset build (research; contact yaoandy107@gmail.com)"}
 _RATE_LIMIT_S = 0.3  # polite delay between live API calls
-_CUTOFF_ISO = "2022-01-01T00:00:00Z"  # pre-2022 contamination defense (design §4)
+_CUTOFF_ISO = "2022-01-01T00:00:00Z"  # pre-2022 contamination defense
 _DATELINE_RE = re.compile(r"【\s*(20\d{2})年(\d{1,2})月(\d{1,2})日\s*】")
 
 
@@ -52,7 +52,7 @@ def parse_dateline(body: str) -> tuple[int, int, int] | None:
 def extract_body(parse_html: str) -> str:
     """Rendered article HTML → the human prose only: join `<p>` paragraphs (the sources /
     related / category boilerplate renders as headings + lists, not `<p>`, so it drops out)
-    and strip the 【…】 dateline source-artifact (design §8.7)."""
+    and strip the 【…】 dateline source-artifact."""
     root = BeautifulSoup(parse_html, "html.parser").select_one("div.mw-parser-output")
     if root is None:
         return ""

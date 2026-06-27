@@ -20,7 +20,7 @@ def _row(text, text_type="ai_generated", language="en", source_text=None,
 def test_gate_refusal_drops_decline_keeps_positive_content():
     assert not gates.gate_refusal(_row("I'm sorry, I can't help with that.")).keep
     assert not gates.gate_refusal(_row("申し訳ありませんが、お手伝いできません。", language="ja")).keep
-    # verb-anchored → positive content that merely contains "can't"/"sorry"/CJK negatives survives (§8.3)
+    # verb-anchored → positive content that merely contains "can't"/"sorry"/CJK negatives survives
     assert gates.gate_refusal(_row("I can't recommend this bakery enough — my favorite.")).keep
     assert gates.gate_refusal(_row("I am sorry to say it, but this was the best show of my life.")).keep
     assert gates.gate_refusal(_row("悔しくて我慢できません。最高でした。", language="ja")).keep
@@ -54,6 +54,17 @@ def test_gate_regurgitation():
     fresh = _row("w0 w1 w2 then wholly different prose on the same general subject matter", source_text=src)
     assert gates.gate_regurgitation(fresh).keep  # only short topical overlap
     assert gates.gate_regurgitation(_row(src, text_type="ai_edited", source_text=src)).keep  # edit exempt
+
+
+def test_gate_noop_edit_drops_verbatim_keeps_real_edit():
+    src = "The harvest festival runs every autumn in the village square."
+    assert not gates.gate_noop_edit(_row(src, text_type="ai_edited", source_text=src)).keep
+    assert not gates.gate_noop_edit(  # whitespace-only diff still counts as no edit
+        _row(f"  {src}\n", text_type="ai_edited", source_text=src)).keep
+    assert gates.gate_noop_edit(  # a real change survives
+        _row("Every fall the village square hosts a harvest festival.",
+             text_type="ai_edited", source_text=src)).keep
+    assert gates.gate_noop_edit(_row(src, text_type="ai_generated", source_text=src)).keep  # mirror exempt
 
 
 def test_near_dedup_within_type_only():

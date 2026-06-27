@@ -1,15 +1,15 @@
-"""Taiwan government press-release scraper for the v2 zh-TW journalistic corpus (design §4).
+"""Taiwan government press-release scraper for the v2 zh-TW journalistic corpus.
 
 zh-TW journalistic needs NATIVE Taiwan Traditional + pre-2022 + a permissive (edited-OK)
 license. The data.gov.tw open-data feeds are rolling "latest-N" CURRENT releases → they fail
 the pre-2022 contamination defense, so this scrapes the gov.taipei news ARCHIVE directly
 (server-rendered, dated, paginated ~2977 pages back to 2016) the way ptt.py scrapes PTT.
 
-Reproducibility + contamination defense (design §4, §13):
+Reproducibility + contamination defense:
 - List rows carry a 民國 (ROC) publish date → keep pre-2022 only (ROC ≤ 110 = 2021) and
   **binary-search** the index by date instead of walking thousands of pages back from today.
-- `source_id` = the article's `s=` id (stable addressable id, design §13). Taipei City gov
-  content is OGDL (公眾授權) → permissive, so it feeds human + mirror + **edited** (design §4).
+- `source_id` = the article's `s=` id (stable addressable id). Taipei City gov
+  content is OGDL (公眾授權) → permissive, so it feeds human + mirror + **edited**.
 - Every page is cached by URL hash → re-runs never re-fetch (resumable scrape).
 
 The pure parsers (`roc_to_year`, `parse_list`, `parse_article`) take HTML and are unit-tested;
@@ -36,7 +36,7 @@ _RATE_LIMIT_S = 0.4
 _ROC_YEAR_OFFSET = 1911  # 民國 year + 1911 = Gregorian (民國111 = 2022)
 _ROC_DATE = re.compile(r"(\d{3})-(\d{1,2})-(\d{1,2})")  # list-row publish date, e.g. 115-06-22
 # Leading press-release metadata labels (issuing unit / date / contact / phone) — some bodies
-# open with this block; the AI mirror never produces it, so it is a source-artifact (design §8.7).
+# open with this block; the AI mirror never produces it, so it is a source-artifact.
 _HEADER_LABELS = ("發稿單位", "發稿日期", "發布單位", "發布日期", "聯絡人", "新聞聯絡", "業務聯絡",
                   "聯絡電話", "聯絡資訊", "主辦單位", "承辦單位", "資料來源", "發言人")
 
@@ -72,7 +72,7 @@ def parse_list(html: str) -> list[dict]:
 
 
 def _strip_press_header(body: str) -> str:
-    """Drop a leading 發稿單位/聯絡電話/… metadata block (anti-confound, design §8.7)."""
+    """Drop a leading 發稿單位/聯絡電話/… metadata block (anti-confound)."""
     lines = body.split("\n")
     cut = 0
     for line in lines:

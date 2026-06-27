@@ -22,7 +22,7 @@ def fetch_pricing() -> dict[str, tuple[float, float]]:
 
 
 def estimate_cost(rows: list[dict], pricing: dict[str, tuple[float, float]]) -> dict:
-    """Per-model list-price estimate from recorded token usage (flex-served rows halved, §5)."""
+    """Per-model list-price estimate from recorded token usage (flex-served rows halved)."""
     by_model: dict[str, dict] = {}
     for row in rows:
         usage = row["meta"].get("usage") or {}

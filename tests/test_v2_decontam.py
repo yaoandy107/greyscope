@@ -48,7 +48,7 @@ def test_filter_passes_non_english_untouched():
     ref = decontam.build_reference(["whatever english reference text goes here for matching"], k=4)
     ja = _row("これは日本語の文章であり英語の参照とは無関係です", language="ja", source="wiki40b-ja")
     clean, dropped = decontam.filter_english([ja], ref, k=4, min_shared=2)
-    assert clean == [ja] and not dropped                   # non-EN has no external target (zh/ja: §11 internal)
+    assert clean == [ja] and not dropped                   # non-EN has no external target (zh/ja: internal)
 
 
 def test_humans_from_csv_filters_and_dedupes(tmp_path):
