@@ -2,12 +2,12 @@
 
 `OPENROUTER_API_KEY` covers both generation and embeddings. Every call is cached
 on disk by content hash, so re-runs never pay twice and a crashed run resumes for
-free (the whole "resumable" mechanism — design §6).
+free (the whole "resumable" mechanism).
 
 Flex tier (`service_tier:"flex"`, -50%) is a *chat* lever — OpenAI + Google only,
 best-effort, so we read the served `service_tier` back to bill/measure the real
 discount; the embeddings endpoint has no flex tier. Decoding stays at the provider
-default everywhere (no temperature/top_p) — the realistic distribution (design §6).
+default everywhere (no temperature/top_p) — the realistic distribution.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from typing import Iterable
 import httpx
 
 BASE_URL = "https://openrouter.ai/api/v1"
-EMBED_MODEL = "qwen/qwen3-embedding-8b"  # locked v2 edit-magnitude scorer (design §7/§8)
+EMBED_MODEL = "qwen/qwen3-embedding-8b"  # locked v2 edit-magnitude scorer
 EMBED_CACHE_DIR = Path("data/v2/cache/embeddings")
 CHAT_CACHE_DIR = Path("data/v2/cache/chat")
 
@@ -33,6 +33,13 @@ _RETRYABLE_STATUS = {408, 409, 429, 500, 502, 503, 504}
 
 class OpenRouterError(RuntimeError):
     """An OpenRouter request failed, or failed after exhausting retries."""
+
+
+class OpenRouterAuthError(OpenRouterError):
+    """The key was rejected (401/402/403): spend cap reached, out of credit, or invalid.
+    Terminal for a build — every further call fails the same way, so callers abort rather
+    than skip. Cached responses are kept, so re-running after adding credit pays only for
+    the remainder."""
 
 
 def _load_dotenv() -> None:
@@ -121,7 +128,7 @@ def cost_of(usage: dict | None) -> float:
 def embedding_cost(texts: Iterable[str], *, model: str = EMBED_MODEL, task_type: str | None = None) -> float:
     """Sum the actual embedding cost recorded in cache for the (deduplicated) `texts` — each was
     embedded once and stored its share of its batch's `usage.cost`, so the sum is exact. 0.0 for
-    any text embedded before cost tracking (pilot-era cache)."""
+    any text embedded before cost tracking (cached by an earlier run)."""
     total = 0.0
     for text in set(texts):
         path = _cache_path(model, task_type, text)
@@ -153,16 +160,21 @@ def _post_with_retry(
         except httpx.TransportError as exc:  # transient network failure
             last_error = exc
         else:
-            if response.status_code not in _RETRYABLE_STATUS:
-                response.raise_for_status()
+            if response.status_code in _RETRYABLE_STATUS:
+                last_error = OpenRouterError(f"HTTP {response.status_code}: {response.text[:200]}")
+            elif response.status_code in (401, 402, 403):  # cap / credit / invalid key — terminal
+                raise OpenRouterAuthError(
+                    f"HTTP {response.status_code} — OpenRouter rejected the key (spend cap reached, "
+                    f"out of credit, or invalid). Add credit / raise the cap, then re-run; cached "
+                    f"responses are preserved so only the remainder is billed. {response.text[:200]}"
+                )
+            elif response.status_code >= 400:  # other 4xx/5xx (bad request, etc.) — terminal, surface it
+                raise OpenRouterError(f"HTTP {response.status_code}: {response.text[:200]}")
+            else:
                 try:
                     return response.json()
                 except json.JSONDecodeError as exc:  # empty/garbled 200 body → retry like a transient failure
                     last_error = OpenRouterError(f"non-JSON body ({len(response.content)}B): {exc}")
-            else:
-                last_error = OpenRouterError(
-                    f"HTTP {response.status_code}: {response.text[:200]}"
-                )
         if attempt < max_retries - 1:
             time.sleep(delay + random.uniform(0, delay * 0.25))  # backoff + jitter
             delay *= 2
@@ -195,7 +207,7 @@ def _embed_batch(
 class ChatResult:
     """A parsed chat completion. `served_tier` is the tier OpenRouter ACTUALLY
     billed (`flex`/`priority`/`default`/None) — compare against the requested tier
-    to catch silent fallback to full price (design §5)."""
+    to catch silent fallback to full price."""
 
     text: str
     model: str
@@ -233,7 +245,7 @@ def chat(
     max_retries: int = 6,
     timeout: float = 120.0,
 ) -> ChatResult:
-    """Send one chat completion, cached on disk by request content (design §6).
+    """Send one chat completion, cached on disk by request content.
 
     Decoding stays at the provider default (no temperature/top_p — the realistic
     distribution). Pass `service_tier="flex"` for the -50% tier; the returned
@@ -251,7 +263,7 @@ def chat(
         body["max_completion_tokens"] = max_completion_tokens
     if extra:
         body.update(extra)
-    body["usage"] = {"include": True}  # OpenRouter returns the actual billed cost in usage.cost (§5)
+    body["usage"] = {"include": True}  # OpenRouter returns the actual billed cost in usage.cost
 
     path = _chat_cache_path(body)
     if path.exists():

@@ -2,8 +2,7 @@
 
 No network: the cache-hit path is exercised by pre-writing a cached response, the
 miss path by stubbing the HTTP post. Guards the flex `served_tier` read-back, the
-default-decoding body, and the content-hash cache that makes generation resumable
-(design §6).
+default-decoding body, and the content-hash cache that makes generation resumable.
 """
 
 import json
@@ -31,7 +30,7 @@ def _tmp_cache(tmp_path, monkeypatch):
 def test_parse_chat_extracts_text_tier_usage():
     result = _parse_chat(_RAW)
     assert result.text == "hello"
-    assert result.served_tier == "flex"  # the actually-billed tier (design §5)
+    assert result.served_tier == "flex"  # the actually-billed tier
     assert result.finish_reason == "stop"
     assert result.usage["total_tokens"] == 12
 
@@ -186,3 +185,25 @@ def test_post_with_retry_raises_clearly_on_persistent_non_json(monkeypatch):
 
     with pytest.raises(openrouter.OpenRouterError, match="non-JSON"):
         openrouter._post_with_retry(_Client(), "/chat/completions", {"model": "m"}, max_retries=2)
+
+
+def test_post_with_retry_aborts_on_auth_error_without_retrying(monkeypatch):
+    monkeypatch.setattr(openrouter.time, "sleep", lambda *a, **k: None)
+    monkeypatch.setattr(openrouter, "_api_key", lambda: "k")
+    calls = []
+
+    class _Resp:
+        status_code = 403
+        is_success = False
+        text = "insufficient credits"
+        content = b"insufficient credits"
+
+    class _Client:
+        def post(self, url, headers, json):
+            calls.append(1)
+            return _Resp()
+
+    with pytest.raises(openrouter.OpenRouterAuthError, match="re-run"):
+        openrouter._post_with_retry(_Client(), "/chat/completions", {"model": "m"}, max_retries=5)
+    assert len(calls) == 1  # cap/credit/key is terminal — surfaced at once, not retried
+    assert issubclass(openrouter.OpenRouterAuthError, openrouter.OpenRouterError)
