@@ -99,3 +99,33 @@ def test_modes_diverge_in_grey_zone(monkeypatch):
 def test_invalid_mode(monkeypatch):
     with pytest.raises(ValueError):
         _detect(monkeypatch, [1.0, 0.0, 0.0, 0.0], mode="nonsense")
+
+
+# --- CORN head (v2): K−1 conditional logits, cumulative-sigmoid decode ---
+
+CORN_CALIB = {
+    "head_type": "corn", "n_buckets": 4,
+    "label_names": ["human", "AI-generated", "AI-edited"],
+    "bucket_descriptions": ["none", "light", "moderate", "heavy"],
+    "flip": False, "score_min": 0.0, "score_max": 1.0,
+    "h_thresh": 0.2, "ai_thresh": 0.8, "binary_threshold": 0.5,
+    "binary_fpr_target": 0.01, "prompt_template": CALIB["prompt_template"],
+    "lowercase": True, "max_length": 2048,
+}
+
+
+def _detect_corn(monkeypatch, cond_logits, **kw):
+    logits = torch.tensor([cond_logits], dtype=torch.bfloat16)  # K−1 conditional logits
+    monkeypatch.setattr(inf, "_load", lambda: (_Model(logits), _Tok(), CORN_CALIB))
+    return inf.detect("A sample passage to classify.", **kw)
+
+
+def test_corn_head_decodes_extremes(monkeypatch):
+    hi = _detect_corn(monkeypatch, [20.0, 20.0, 20.0])
+    lo = _detect_corn(monkeypatch, [-20.0, -20.0, -20.0])
+    assert hi["label"] == "AI-generated" and hi["ai_involvement"] == 1.0
+    assert lo["label"] == "human" and lo["ai_involvement"] == 0.0
+    # 3 conditional logits still decode to 4 discrete bucket probs that sum to 1
+    assert list(hi["bucket_probs"]) == CORN_CALIB["bucket_descriptions"]
+    assert abs(sum(hi["bucket_probs"].values()) - 1.0) < 0.02
+    json.dumps(hi)

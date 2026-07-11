@@ -16,6 +16,7 @@ import sys
 from functools import lru_cache
 from typing import Literal, TypedDict
 
+import numpy as np
 import torch
 
 from .preprocess import clean_text
@@ -90,9 +91,18 @@ def detect(text: str, mode: Mode = "ternary") -> DetectionResult:
     enc = tok(prompt, return_tensors="pt", truncation=True,
               max_length=calib["max_length"], add_special_tokens=False).to(model.device)
 
-    probs = torch.softmax(model(**enc).logits[0].float(), dim=-1)
-    weights = torch.arange(n_buckets, dtype=probs.dtype, device=probs.device)
-    scalar = (probs * weights).sum().item() / (n_buckets - 1)
+    raw = model(**enc).logits[0].float()
+    # CORN emits K−1 conditional logits (decode via the cumulative-sigmoid product); seq-cls
+    # emits K bucket logits (softmax-expectation). head_type rides in calibration.json.
+    if calib.get("head_type", "seqcls") == "corn":
+        from .corn import corn_bucket_probs, corn_scalar_score
+
+        arr = raw.cpu().numpy()[None, :]  # [1, K−1]
+        probs = corn_bucket_probs(arr)[0]
+        scalar = float(corn_scalar_score(arr)[0])
+    else:
+        probs = torch.softmax(raw, dim=-1).cpu().numpy()
+        scalar = float((probs * np.arange(n_buckets)).sum() / (n_buckets - 1))
     oriented = -scalar if calib["flip"] else scalar
     lo, hi = calib["score_min"], calib["score_max"]
     scaled = min(max((oriented - lo) / (hi - lo), 0.0), 1.0)
@@ -106,7 +116,7 @@ def detect(text: str, mode: Mode = "ternary") -> DetectionResult:
     return {
         "label": label,
         "ai_involvement": round(scaled, 3),
-        "bucket_probs": {d: round(p, 3) for d, p in zip(calib["bucket_descriptions"], probs.tolist())},
+        "bucket_probs": {d: round(float(p), 3) for d, p in zip(calib["bucket_descriptions"], probs)},
     }
 
 

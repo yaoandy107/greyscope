@@ -44,6 +44,11 @@ train = [
     "omegaconf>=2.3",
     "flash-linear-attention; sys_platform == 'linux'",
     "einops; sys_platform == 'linux'",
+    # HF kernel hub — transformers' FineGrainedFP8 matmul loads from it at runtime;
+    # without it fp8 model forward dies with `NoneType has no attribute w8a8_fp8_matmul`.
+    # Range = transformers 5.5.0's own pin (dependency_versions_table); newer kernels
+    # (>=0.13) breaks its LayerRepository call at import time.
+    "kernels>=0.12.0,<0.13; sys_platform == 'linux'",
 ]
 dev = [
     "greyscope[eval]",
