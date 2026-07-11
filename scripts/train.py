@@ -33,27 +33,68 @@ import hydra  # noqa: E402
 log = logging.getLogger(__name__)
 
 
+def _fmt(x) -> str:
+    """Format a nullable metric (TPR@FPR is None on a single-class slice)."""
+    return f"{x:.3f}" if x is not None else "n/a"
+
+
 def _train(cfg) -> None:
     from transformers import EarlyStoppingCallback, TrainingArguments
     from transformers.trainer_utils import get_last_checkpoint
 
     from greyscope.collator import DataCollatorForSeqCls
-    from greyscope.data import prepare_data
-    from greyscope.model import load_model_and_tokenizer
-    from greyscope.trainer import build_weighted_trainer_class, make_compute_metrics
+    from greyscope.model import load_encoder_and_tokenizer, load_model_and_tokenizer
+    from greyscope.trainer import (
+        build_corn_trainer_class, build_sampler_trainer_class, build_weighted_trainer_class,
+        make_compute_metrics, make_corn_compute_metrics,
+    )
 
-    log.info("Preparing data from %s", cfg.data.dataset)
-    data = prepare_data(cfg.data)
+    if getattr(cfg.data, "source", None) == "v2":
+        from greyscope.data import prepare_v2_data
+        log.info("Preparing v2 trilingual data from %s", cfg.data.splits_dir)
+        data = prepare_v2_data(cfg.data, splits_dir=cfg.data.splits_dir)
+    else:
+        from greyscope.data import prepare_data
+        log.info("Preparing data from %s", cfg.data.dataset)
+        data = prepare_data(cfg.data)
     log.info("Train=%d  Val=%d  Test=%d", len(data.train), len(data.val), len(data.test))
-    log.info("Class weights: %s", data.class_weights)
 
-    log.info("Loading model %s (seq-cls head)", cfg.model.name)
-    model, tokenizer = load_model_and_tokenizer(cfg)
+    arch = getattr(cfg.model, "arch", "decoder")
+    if arch == "encoder":
+        log.info("Loading encoder %s (full fine-tune)", cfg.model.name)
+        model, tokenizer = load_encoder_and_tokenizer(cfg)
+    else:
+        log.info("Loading model %s (seq-cls head)", cfg.model.name)
+        model, tokenizer = load_model_and_tokenizer(cfg)
 
-    weights = data.class_weights if cfg.training.use_class_weights else None
-    collator = DataCollatorForSeqCls(tokenizer=tokenizer, max_length=cfg.model.max_seq_length)
-    TrainerCls = build_weighted_trainer_class(weights)
-    compute_metrics = make_compute_metrics(cfg.data.n_buckets)
+    collator = DataCollatorForSeqCls(tokenizer=tokenizer, max_length=cfg.model.max_seq_length,
+                                     add_special_tokens=(arch == "encoder"))
+
+    head = getattr(cfg.model, "head", "seqcls")
+    use_sampler = getattr(cfg.training, "use_sample_weights", False)
+    # v2 balances language AND bucket via a WeightedRandomSampler (loss stays plain CE);
+    # v1 balances buckets via class-weighted CE. Use one mechanism, not both. The CORN head
+    # keeps the sampler but swaps cross-entropy for the ordinal conditional loss.
+    if head == "corn":
+        ranking_weight = getattr(cfg.model, "ranking_loss_weight", 0.0)
+        log.info("CORN ordinal head: K−1 conditional logits + conditional loss%s%s.",
+                 " (language+bucket sampler)" if use_sampler else "",
+                 f" + hard-neg ranking loss (w={ranking_weight})" if ranking_weight > 0 else "")
+        compute_metrics = make_corn_compute_metrics(cfg.data.n_buckets)
+        TrainerCls = build_corn_trainer_class(
+            data.sample_weights if use_sampler else None,
+            ranking_weight=ranking_weight,
+            ranking_margin=getattr(cfg.model, "ranking_margin", 0.25),
+        )
+    elif use_sampler:
+        log.info("Balancing via joint language+bucket WeightedRandomSampler (v2).")
+        compute_metrics = make_compute_metrics(cfg.data.n_buckets)
+        TrainerCls = build_sampler_trainer_class(data.sample_weights)
+    else:
+        weights = data.class_weights if cfg.training.use_class_weights else None
+        log.info("Class weights: %s", weights)
+        compute_metrics = make_compute_metrics(cfg.data.n_buckets)
+        TrainerCls = build_weighted_trainer_class(weights)
 
     # HF deprecated warmup_ratio; convert it to warmup_steps.
     effective_batch = (
@@ -67,8 +108,9 @@ def _train(cfg) -> None:
 
     model_short = cfg.model.name.split("/")[-1]
     tag = os.path.basename(cfg.training.output_dir.rstrip("/")) or "run"
+    cap = "fullft" if arch == "encoder" else f"r{cfg.lora.r}"
     run_name = (
-        f"{tag}-{model_short}-r{cfg.lora.r}"
+        f"{tag}-{model_short}-{cap}"
         f"-ep{cfg.training.num_train_epochs}-eb{effective_batch}"
         f"-lr{cfg.training.learning_rate:g}"
         f"-s{cfg.training.seed}"
@@ -131,19 +173,44 @@ def _train(cfg) -> None:
     with open(os.path.join(cfg.training.output_dir, "final_metrics.json"), "w") as fh:
         json.dump(final_metrics, fh, indent=2)
 
-    from greyscope.eval import run_ternary_eval
+    from greyscope.eval import eval_ood_splits, run_ternary_eval
 
     log.info("Running ternary evaluation (calibrate on val, score on test)")
-    ternary = run_ternary_eval(trainer, data.val, data.test, cfg.data.n_buckets)
+    ternary = run_ternary_eval(trainer, data.val, data.test, cfg.data.n_buckets, head=head)
     m = ternary["metrics"]
+    d = ternary["detection"]
     log.info("Ternary macro-F1: %.4f (target ≥0.92; editlens-Llama baseline 0.895)", m["macro_f1"])
     log.info("  per-class F1 — human=%.3f / ai_generated=%.3f / ai_edited=%.3f",
              m["f1_human"], m["f1_ai_generated"], m["f1_ai_edited"])
+    log.info("  DETECTION (human vs any-AI) — AUROC=%.4f  TPR@FPR1%%=%s  TPR@FPR5%%=%s",
+             d["auroc"], _fmt(d["tpr@fpr1"]), _fmt(d["tpr@fpr5"]))
     log.info("  thresholds — human=%.4f / ai=%.4f (val F1s: h=%.3f, ai=%.3f)",
              ternary["h_thresh"], ternary["ai_thresh"], ternary["val_h_f1"], ternary["val_ai_f1"])
+    for lang, pl in ternary.get("per_language", {}).items():
+        pd = pl["detection"]
+        log.info("  [%s] macro-F1=%.4f (h=%.3f / ai=%.3f / ed=%.3f) · AUROC=%.4f TPR@FPR1%%=%s (n=%d)",
+                 lang, pl["macro_f1"], pl["f1_human"], pl["f1_ai_generated"], pl["f1_ai_edited"],
+                 pd["auroc"], _fmt(pd["tpr@fpr1"]), pl["n"])
     m["confusion_matrix"] = m["confusion_matrix"].tolist()  # ndarray isn't JSON-serializable
     with open(os.path.join(cfg.training.output_dir, "ternary_metrics.json"), "w") as fh:
         json.dump(ternary, fh, indent=2)
+
+    # OOD / generalization — the metric that actually decides recipe choices (v1's mistake was
+    # selecting on in-domain). Same val-calibrated thresholds, applied to the held-out splits.
+    if getattr(cfg.data, "source", None) == "v2":
+        ood = eval_ood_splits(
+            trainer, cfg.data.splits_dir, ["test_llama", "test_enron", "ood_generator"],
+            cfg.data.n_buckets, head=head, flip=ternary["score_flipped"],
+            h_thresh=ternary["h_thresh"], ai_thresh=ternary["ai_thresh"], limit=1200,
+            use_prompt_template=getattr(cfg.data, "use_prompt_template", True))
+        log.info("=== OOD / generalization (val-calibrated thresholds) ===")
+        for name, r in ood.items():
+            rd = r["detection"]
+            pl = " ".join(f"{k}={v['macro_f1']:.3f}(n={v['n']})" for k, v in r["per_language"].items())
+            log.info("[OOD %-13s] macro-F1=%.4f · DETECTION AUROC=%.4f TPR@FPR1%%=%s TPR@FPR5%%=%s (n=%d)  %s",
+                     name, r["macro_f1"], rd["auroc"], _fmt(rd["tpr@fpr1"]), _fmt(rd["tpr@fpr5"]), r["n"], pl)
+        with open(os.path.join(cfg.training.output_dir, "ood_metrics.json"), "w") as fh:
+            json.dump(ood, fh, indent=2)
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="train")

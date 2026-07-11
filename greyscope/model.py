@@ -43,14 +43,19 @@ def load_model_and_tokenizer(cfg) -> tuple[Any, Any]:
         "float32": torch.float32,
     }[cfg.model.dtype]
 
-    log.info("Loading %s via FastModel SEQ_CLS head (num_labels=%d, dtype=%s).",
-             cfg.model.name, cfg.data.n_buckets, cfg.model.dtype)
+    # CORN ordinal head emits K−1 conditional logits; seq-cls emits K. n_buckets and the
+    # head type ride in the saved config so inference picks the right decode.
+    head = getattr(cfg.model, "head", "seqcls")
+    n_out = (cfg.data.n_buckets - 1) if head == "corn" else cfg.data.n_buckets
+
+    log.info("Loading %s via FastModel head=%s (out=%d, n_buckets=%d, dtype=%s).",
+             cfg.model.name, head, n_out, cfg.data.n_buckets, cfg.model.dtype)
     model, tokenizer = FastModel.from_pretrained(
         model_name=cfg.model.name,
         max_seq_length=cfg.model.max_seq_length,
         dtype=dtype,
         load_in_4bit=False,
-        num_labels=cfg.data.n_buckets,
+        num_labels=n_out,
         auto_model=AutoModelForSequenceClassification,
         use_gradient_checkpointing=cfg.lora.use_gradient_checkpointing,
     )
@@ -58,8 +63,15 @@ def load_model_and_tokenizer(cfg) -> tuple[Any, Any]:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"  # seq-cls head reads the last non-pad token
     model.config.pad_token_id = tokenizer.pad_token_id
+    model.config.head_type = head
+    model.config.n_buckets = cfg.data.n_buckets
 
-    _ensure_score_head(model, cfg.data.n_buckets)
+    _ensure_score_head(model, n_out)
+
+    # target_modules is an explicit list or the string "all-linear" (PEFT special-cases the
+    # latter to every nn.Linear).
+    tm = cfg.lora.target_modules
+    target_modules = tm if isinstance(tm, str) else list(tm)
 
     model = FastModel.get_peft_model(
         model,
@@ -67,9 +79,37 @@ def load_model_and_tokenizer(cfg) -> tuple[Any, Any]:
         lora_alpha=cfg.lora.alpha,
         lora_dropout=cfg.lora.dropout,
         bias="none",
-        target_modules=list(cfg.lora.target_modules),
+        target_modules=target_modules,
         use_gradient_checkpointing=cfg.lora.use_gradient_checkpointing,
         task_type="SEQ_CLS",
         modules_to_save=["score"],
     )
+    return model, tokenizer
+
+
+def load_encoder_and_tokenizer(cfg) -> tuple[Any, Any]:
+    """Load a multilingual ENCODER (mDeBERTa-v3 / XLM-R) as a FULL fine-tune seq-cls/CORN
+    backbone — the lite-tier bake-off arm. Plain transformers, no Unsloth and no LoRA:
+    encoders are small enough to fully fine-tune, and 2026 detection results show full-FT ≥
+    LoRA here. Weights load in fp32 (master weights); `bf16=true` autocasts the compute.
+
+    Mirrors the decoder loader's contract — right padding, pad-token fallback, and head_type /
+    n_buckets stamped on the config so eval + inference pick the CORN decode — so the shared
+    trainer/eval path works unchanged. CORN emits K−1 logits; seq-cls emits K.
+    """
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+    head = getattr(cfg.model, "head", "seqcls")
+    n_out = (cfg.data.n_buckets - 1) if head == "corn" else cfg.data.n_buckets
+
+    log.info("Loading encoder %s (full-FT) head=%s (out=%d, n_buckets=%d).",
+             cfg.model.name, head, n_out, cfg.data.n_buckets)
+    tokenizer = AutoTokenizer.from_pretrained(cfg.model.name)
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "right"  # the seq-cls head pools the [CLS]/first token, never padding
+    model = AutoModelForSequenceClassification.from_pretrained(cfg.model.name, num_labels=n_out)
+    model.config.pad_token_id = tokenizer.pad_token_id
+    model.config.head_type = head
+    model.config.n_buckets = cfg.data.n_buckets
     return model, tokenizer

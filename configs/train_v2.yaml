@@ -1,0 +1,68 @@
+# Greyscope v2 trilingual recipe (EN / ja / zh-TW), Qwen3.5-4B with joint language+bucket
+# balancing. Presets (smoke_v2 / production_v2) live in modal/train.py.
+# Precision: train LoRA in bf16, ship int4 via torchao PTQ with HQQ qparams (export.py) —
+# near-lossless on Qwen (-0.8% in-domain).
+
+model:
+  name: unsloth/Qwen3.5-4B-Base   # GDN linear-attn text base
+  max_seq_length: 2048            # caps the zh-TW tail (~94% covered); EN/ja fit easily
+  dtype: bfloat16
+  head: corn                      # corn (K-1 ordinal head) | seqcls
+  ranking_loss_weight: 0.1        # MELD hard-neg ranking loss at the human/AI boundary (arXiv:2605.06903),
+                                  # added to the CORN loss; a TPR@low-FPR lever. 0=off.
+  ranking_margin: 0.25            # min P(y>0) gap between AI and human in a batch before the pair is free
+
+lora:
+  r: 32
+  alpha: 32
+  dropout: 0.0
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+  use_gradient_checkpointing: unsloth
+
+data:
+  source: v2                      # selects prepare_v2_data (local trilingual splits)
+  splits_dir: data/v2/splits
+  dataset: pangram/editlens_iclr  # unused for v2; kept for schema parity
+  n_buckets: 4
+  bucket_lo_threshold: 0.03       # unused (v2 buckets precomputed per language in assemble)
+  bucket_hi_threshold: 0.15
+  min_words: 75                   # unused for v2 (CJK-safe loader skips the word-count gate)
+  train_subset: null
+  val_subset: null
+  test_subset: null
+  seed: 42
+  apply_clean_text: true
+  label_field: cosine_score
+  sample_weight_temperature: 0.5  # τ for the joint language+bucket sampler: 1.0=full inverse (memorizes
+                                  # thin ja/zh-TW), 0=natural mix, 0.5=sqrt.
+
+training:
+  output_dir: outputs/greyscope-v2
+  resume_from_checkpoint: true
+  num_train_epochs: 2          # budget-conscious one-shot; early stopping can cut it
+  per_device_train_batch_size: 8    # batch-8 peaks ~30 GB → fits the cheaper A100-40GB
+  per_device_eval_batch_size: 4     # eval has NO gradient checkpointing → keep the GDN
+                                    # torch-fallback forward small or it hangs at seq 2048
+  gradient_accumulation_steps: 2    # effective batch 16 (matches v1), at lower peak memory
+  learning_rate: 2.0e-4
+  lr_scheduler_type: cosine
+  warmup_ratio: 0.05
+  max_grad_norm: 1.0
+  weight_decay: 0.01
+  optim: adamw_8bit
+  bf16: true
+  fp16: false
+  use_class_weights: false         # v2 balances via the sampler instead
+  use_sample_weights: true         # joint language+bucket WeightedRandomSampler
+  eval_strategy: steps
+  eval_steps: 200
+  save_strategy: steps
+  save_steps: 200
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: eval_detection_auroc  # select on the human/AI boundary, not 4-bucket macro-F1
+  greater_is_better: true                      # (thin middle buckets are noisy; TPR@FPR is the headline)
+  early_stopping_patience: 5
+  seed: 42
+  logging_steps: 25
+  report_to: wandb

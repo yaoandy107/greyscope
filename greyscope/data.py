@@ -32,6 +32,34 @@ def compute_class_weights(labels: list[int], n_buckets: int) -> list[float]:
     return weights.tolist()
 
 
+def compute_sample_weights(
+    languages: list[str], labels: list[int], temperature: float = 1.0
+) -> list[float]:
+    """Per-sample weights that balance language AND bucket jointly: smoothed inverse
+    (language, bucket) frequency, normalized to mean 1.
+
+    The v2 mix is mildly language-skewed (EN ~39% / ja ~32% / zh-tw ~29%) and heavily
+    bucket-skewed — the graded middle (buckets 1–2) is only ~6% of rows, since it comes
+    solely from edits. Bucket class-weights alone can't rebalance *within* a language; joint
+    (language, bucket) inverse-frequency lifts the thin middle cells without letting any
+    language or minority bucket drown. Feed to a WeightedRandomSampler or a per-sample
+    weighted loss. Returns [] for empty input.
+
+    `temperature` τ smooths the balancing: weight ∝ count**(−τ). τ=1 is full inverse-frequency
+    (equal sampling mass per (language, bucket) cell — most aggressive); τ=0 is natural
+    frequency (no balancing); τ≈0.3–0.5 is the multilingual default (sqrt-smoothed) that lifts
+    the thin ja/zh-tw cells without oversampling them so hard the LoRA memorizes them.
+    """
+    from collections import Counter
+
+    pairs = list(zip(languages, labels))
+    if not pairs:
+        return []
+    counts = Counter(pairs)
+    raw = np.asarray([counts[p] ** (-temperature) for p in pairs])
+    return (raw * (len(raw) / raw.sum())).tolist()
+
+
 @dataclass
 class PreparedData:
     train: Any
@@ -39,6 +67,7 @@ class PreparedData:
     test: Any
     class_weights: list[float]
     n_buckets: int
+    sample_weights: list[float] | None = None  # per-train-row; v2 language+bucket balancing
 
 
 def _prepare_split(split, cfg, subset: int | None):
@@ -66,5 +95,57 @@ def prepare_data(cfg) -> PreparedData:
         val=_prepare_split(raw["val"], cfg, cfg.val_subset),
         test=_prepare_split(raw["test"], cfg, cfg.test_subset),
         class_weights=compute_class_weights(train["label"], cfg.n_buckets),
+        n_buckets=cfg.n_buckets,
+    )
+
+
+V2_SPLITS_DIR = "data/v2/splits"
+
+
+def _prepare_v2_split(split, *, apply_clean: bool, subset: int | None = None, seed: int = 42,
+                      use_prompt_template: bool = True):
+    """Format a v2 split for training. The precomputed per-language `bucket` is the label.
+
+    No English word-count filter: `count_words` treats a CJK run as ~one word, so a
+    `min_words` gate would delete nearly every ja/zh-tw row — the v2 build gates already
+    enforce length per language. `clean_text` is CJK-safe (lower/whitespace are no-ops there).
+    `subset` (smoke runs) samples after shuffle. `use_prompt_template=False` puts the raw text
+    in `prompt` (the encoder arm classifies from [CLS] — the instruction wastes its context).
+    """
+    if subset:
+        split = split.shuffle(seed=seed).select(range(min(subset, len(split))))
+    if apply_clean:
+        split = split.map(lambda ex: {"text": clean_text(ex["text"])})
+    return split.map(lambda ex: {"label": int(ex["bucket"]),
+                                 "prompt": (PROMPT_TEMPLATE.format(text=ex["text"])
+                                            if use_prompt_template else ex["text"])})
+
+
+def prepare_v2_data(cfg, splits_dir: str = V2_SPLITS_DIR) -> PreparedData:
+    """Load the local trilingual v2 splits for training. Buckets are precomputed with
+    per-language cuts (used directly); returns both bucket class-weights and joint
+    language+bucket per-sample weights so the EN-heavy mix can be balanced at train time.
+    """
+    from datasets import load_dataset
+
+    files = {s: f"{splits_dir}/{s}.csv" for s in ("train", "val", "test")}
+    # Load only the columns training needs. Other columns (e.g. `model`) are empty on human
+    # rows but strings on AI rows, so CSV type-inference picks `double` then fails to cast
+    # "openai/..." — restricting columns sidesteps the mixed null/string inference entirely.
+    raw = load_dataset("csv", data_files=files,
+                       usecols=["text", "language", "text_type", "bucket"])
+    use_prompt = getattr(cfg, "use_prompt_template", True)
+    train = _prepare_v2_split(raw["train"], apply_clean=cfg.apply_clean_text,
+                              subset=cfg.train_subset, seed=cfg.seed, use_prompt_template=use_prompt)
+    return PreparedData(
+        train=train,
+        val=_prepare_v2_split(raw["val"], apply_clean=cfg.apply_clean_text,
+                              subset=cfg.val_subset, seed=cfg.seed, use_prompt_template=use_prompt),
+        test=_prepare_v2_split(raw["test"], apply_clean=cfg.apply_clean_text,
+                               subset=cfg.test_subset, seed=cfg.seed, use_prompt_template=use_prompt),
+        class_weights=compute_class_weights(train["label"], cfg.n_buckets),
+        sample_weights=compute_sample_weights(
+            train["language"], train["label"],
+            temperature=getattr(cfg, "sample_weight_temperature", 0.5)),
         n_buckets=cfg.n_buckets,
     )

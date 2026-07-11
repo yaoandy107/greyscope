@@ -51,6 +51,27 @@ def test_seqcls_collator_pads_to_multiple():
     assert batch["input_ids"].shape[1] % 8 == 0
 
 
+def test_seqcls_collator_passes_add_special_tokens_flag():
+    """Decoder path keeps add_special_tokens=False (the final prompt token is the head's read
+    position); the encoder arm sets True so the backbone gets its [CLS]/[SEP]."""
+    from greyscope.collator import DataCollatorForSeqCls
+
+    seen = {}
+
+    class _RecordingTokenizer(_FakeTokenizer):
+        def __call__(self, texts, **kw):
+            seen["value"] = kw.get("add_special_tokens")
+            return super().__call__(texts, **kw)
+
+    tok = _RecordingTokenizer()
+    DataCollatorForSeqCls(tokenizer=tok, max_length=64)([{"prompt": "hi", "label": 0}])
+    assert seen["value"] is False  # default = decoder behavior
+
+    DataCollatorForSeqCls(tokenizer=tok, max_length=64, add_special_tokens=True)(
+        [{"prompt": "hi", "label": 0}])
+    assert seen["value"] is True
+
+
 def test_seqcls_collator_rejects_left_padding():
     """Left padding would point the seq-cls head at padding, not the last real token.
 
