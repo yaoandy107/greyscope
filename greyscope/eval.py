@@ -174,6 +174,50 @@ def tpr_at_fpr(y_true: np.ndarray, scores: np.ndarray, target_fpr: float) -> flo
     return float((scores[y_true == 1] > thr).mean())
 
 
+def detection_from_scalar(scores: np.ndarray, ternary_labels: np.ndarray,
+                          target_fprs: tuple[float, ...] = (0.01, 0.05)) -> dict:
+    """Human(0) vs ANY-AI(>0) detection from an oriented scalar (higher = more AI) — the product
+    boundary "is this AI?" asks, and what the CORN ranking loss optimizes. Threshold-free AUROC +
+    TPR at each self-calibrated FPR (RAID's protocol). `ternary_labels` are LABEL_TO_ID ints
+    (human=0, generated/edited>0); None on a single-class slice."""
+    y = (np.asarray(ternary_labels) > 0).astype(int)
+    out: dict = {"auroc": roc_auc(y, scores), "n": int(len(y))}
+    for fpr in target_fprs:
+        out[f"tpr@fpr{int(round(fpr * 100))}"] = tpr_at_fpr(y, scores, fpr)
+    return out
+
+
+def conformal_threshold_for_fpr(human_scores: np.ndarray, target_fpr: float) -> float:
+    """Split-conformal score threshold with *finite-sample* false-positive control.
+
+    Uses the ceil((n+1)(1-fpr))-th order statistic, so at most `target_fpr` of future human
+    texts are expected to exceed it — a distribution-free guarantee, unlike the plain
+    empirical quantile (`threshold_for_fpr`), which it meets or exceeds. Returns +inf when
+    there are too few humans to certify the rate (n < 1/fpr - 1), i.e. flag nothing rather
+    than over-promise.
+    """
+    s = np.sort(np.asarray(human_scores, dtype=float))
+    n = len(s)
+    if n == 0:
+        return float("inf")
+    rank = int(np.ceil((n + 1) * (1.0 - target_fpr)))  # 1-based rank of the threshold value
+    if rank > n:
+        return float("inf")  # not enough calibration humans to certify this FPR
+    return float(s[rank - 1])
+
+
+def grouped_conformal_threshold(human_scores: np.ndarray, groups, target_fpr: float) -> float:
+    """Max conformal threshold across human subgroups, so the FPR target holds for the
+    *hardest* group (non-native writers / each language) — not just the easy majority.
+    Pooling would let the in-domain majority dominate the quantile and inflate the rate
+    on the vulnerable group (v1's false-accusation failure mode)."""
+    scores = np.asarray(human_scores, dtype=float)
+    groups = np.asarray(groups)
+    thresholds = [conformal_threshold_for_fpr(scores[groups == g], target_fpr)
+                  for g in np.unique(groups)]
+    return float(max(thresholds)) if thresholds else float("inf")
+
+
 def eval_detector_ternary(val_df: pd.DataFrame, split_df: pd.DataFrame, col: str) -> dict:
     """Ternary metrics for one detector `col`: calibrate two thresholds on val
     (per-split min-max), apply to the split."""
@@ -233,15 +277,22 @@ def run_ternary_eval(
     val_dataset,
     test_dataset,
     n_buckets: int,
+    head: str = "seqcls",
 ) -> dict:
     """Calibrate-on-val, evaluate-on-test ternary macro-F1, the headline metric.
-    Datasets need a `text_type` column.
+    Datasets need a `text_type` column. `head="corn"` decodes the ordinal cumulative
+    probabilities to the scalar score instead of the seq-cls softmax-expectation.
     """
     val_logits = _predict_bucket_logits(trainer, val_dataset)
     test_logits = _predict_bucket_logits(trainer, test_dataset)
 
-    val_scores = compute_scalar_score(val_logits, n_buckets)
-    test_scores = compute_scalar_score(test_logits, n_buckets)
+    if head == "corn":
+        from greyscope.corn import corn_scalar_score
+        val_scores = corn_scalar_score(val_logits)
+        test_scores = corn_scalar_score(test_logits)
+    else:
+        val_scores = compute_scalar_score(val_logits, n_buckets)
+        test_scores = compute_scalar_score(test_logits, n_buckets)
 
     val_labels = np.asarray([LABEL_TO_ID[t] for t in val_dataset["text_type"]])
     test_labels = np.asarray([LABEL_TO_ID[t] for t in test_dataset["text_type"]])
@@ -255,14 +306,33 @@ def run_ternary_eval(
     preds = predict_ternary(test_scaled, h_thresh, ai_thresh)
     metrics = evaluate(test_labels, preds)
 
-    return {
+    out = {
         "metrics": metrics,
+        "detection": detection_from_scalar(test_oriented, test_labels),
         "h_thresh": float(h_thresh),
         "ai_thresh": float(ai_thresh),
         "val_h_f1": float(h_f1),
         "val_ai_f1": float(ai_f1),
         "score_flipped": flipped,
     }
+
+    # Per-language breakdown (v2 trilingual): same global thresholds, F1 + human-vs-AI
+    # detection (AUROC / TPR@FPR self-calibrated per language, so the FPR target holds for
+    # the hardest language, not just the pooled majority). Absent for v1 (no language).
+    cols = getattr(test_dataset, "column_names", [])
+    if "language" in cols:
+        langs = np.asarray(test_dataset["language"])
+        per_language = {}
+        for g in sorted(set(langs.tolist())):
+            gi = langs == g
+            mg = evaluate(test_labels[gi], preds[gi])
+            per_language[g] = {"macro_f1": float(mg["macro_f1"]), "f1_human": float(mg["f1_human"]),
+                               "f1_ai_generated": float(mg["f1_ai_generated"]),
+                               "f1_ai_edited": float(mg["f1_ai_edited"]), "n": int(gi.sum()),
+                               "detection": detection_from_scalar(test_oriented[gi], test_labels[gi])}
+        out["per_language"] = per_language
+
+    return out
 
 
 def _predict_bucket_logits(trainer, dataset) -> np.ndarray:
@@ -271,3 +341,75 @@ def _predict_bucket_logits(trainer, dataset) -> np.ndarray:
     if isinstance(logits, tuple):
         logits = logits[0]
     return logits
+
+
+class StandaloneScorer:
+    """Adapts a plain (model, tokenizer) pair to the `trainer.predict` interface that
+    run_ternary_eval / eval_ood_splits consume, so exported artifacts — including the
+    quantized int4/fp8 ones B0 judges — run the exact eval protocol of a training run."""
+
+    def __init__(self, model, tokenizer, *, max_length: int = 2048, batch_size: int = 16):
+        self.model = model
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+        self.batch_size = batch_size
+
+    def predict(self, dataset):
+        from types import SimpleNamespace
+
+        from greyscope.scoring import batch_logits
+
+        logits = batch_logits(self.model, self.tokenizer, dataset["prompt"],
+                              max_length=self.max_length, batch_size=self.batch_size)
+        return SimpleNamespace(predictions=logits)
+
+
+def eval_ood_splits(trainer, splits_dir, split_names, n_buckets, *, head, flip,
+                    h_thresh, ai_thresh, apply_clean=True, limit=None,
+                    use_prompt_template=True) -> dict:
+    """Score held-out OOD splits with the *val-calibrated* thresholds → ternary macro-F1 +
+    per-language, the generalization check the in-domain test can't give (v1's selection flaw).
+
+    Per-split min-max scaling + the frozen val thresholds, matching the OOD protocol. Missing
+    split files are skipped. `head="corn"` uses the ordinal cumulative decode. `limit`
+    subsamples each split (the eval is at the small no-OOM batch, so full splits are slow; a
+    stratified subsample is enough for a directional recipe comparison).
+    """
+    import os
+
+    from datasets import load_dataset
+
+    from greyscope.data import _prepare_v2_split
+
+    results: dict = {}
+    for name in split_names:
+        path = os.path.join(splits_dir, f"{name}.csv")
+        if not os.path.exists(path):
+            continue
+        raw = load_dataset("csv", data_files=path,
+                           usecols=["text", "language", "text_type", "bucket"])["train"]
+        ds = _prepare_v2_split(raw, apply_clean=apply_clean, subset=limit,
+                               use_prompt_template=use_prompt_template)
+        logits = _predict_bucket_logits(trainer, ds)
+        if head == "corn":
+            from greyscope.corn import corn_scalar_score
+            scores = corn_scalar_score(logits)
+        else:
+            scores = compute_scalar_score(logits, n_buckets)
+        oriented = -scores if flip else scores
+        preds = predict_ternary(minmax_scale(oriented), h_thresh, ai_thresh)
+        labels = np.asarray([LABEL_TO_ID[t] for t in ds["text_type"]])
+        m = evaluate(labels, preds)
+        langs = np.asarray(ds["language"])
+        per_language = {}
+        for g in sorted(set(langs.tolist())):
+            gi = langs == g
+            mg = evaluate(labels[gi], preds[gi])
+            per_language[g] = {"macro_f1": float(mg["macro_f1"]), "n": int(gi.sum()),
+                               "detection": detection_from_scalar(oriented[gi], labels[gi])}
+        results[name] = {"macro_f1": float(m["macro_f1"]), "f1_human": float(m["f1_human"]),
+                         "f1_ai_generated": float(m["f1_ai_generated"]),
+                         "f1_ai_edited": float(m["f1_ai_edited"]),
+                         "detection": detection_from_scalar(oriented, labels),
+                         "per_language": per_language, "n": int(len(ds))}
+    return results

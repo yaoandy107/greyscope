@@ -25,8 +25,16 @@ def batch_logits(model, tok, prompts, *, max_length: int = 2048, batch_size: int
     return np.concatenate(rows, axis=0)
 
 
-def score_prompts(model, tok, prompts, n_buckets: int, **kw) -> np.ndarray:
-    """`batch_logits` collapsed to scalar AI-ness scores in [0, 1] (eval.compute_scalar_score)."""
+def score_prompts(model, tok, prompts, n_buckets: int, *, head: str = "seqcls", **kw) -> np.ndarray:
+    """`batch_logits` collapsed to scalar AI-ness scores in [0, 1]. `head="corn"` decodes the
+    K−1 ordinal logits via the cumulative-sigmoid product; else the seq-cls softmax-expectation.
+    Both callers (calibration, RAID flip) must pass the model's head so the scalar matches the
+    one the thresholds were fit on."""
+    logits = batch_logits(model, tok, prompts, **kw)
+    if head == "corn":
+        from greyscope.corn import corn_scalar_score
+
+        return corn_scalar_score(logits)
     from greyscope.eval import compute_scalar_score
 
-    return compute_scalar_score(batch_logits(model, tok, prompts, **kw), n_buckets)
+    return compute_scalar_score(logits, n_buckets)

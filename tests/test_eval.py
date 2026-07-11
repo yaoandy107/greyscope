@@ -6,8 +6,11 @@ from greyscope.eval import (
     LABEL_TO_ID,
     calibrate_thresholds,
     compute_scalar_score,
+    conformal_threshold_for_fpr,
+    detection_from_scalar,
     evaluate,
     find_optimal_threshold,
+    grouped_conformal_threshold,
     minmax_scale,
     orient_scores,
     predict_ternary,
@@ -158,3 +161,39 @@ def test_tpr_at_fpr_separable_and_single_class():
     assert tpr_at_fpr(y, scores, 0.05) == 1.0
     # human-only split → TPR undefined
     assert tpr_at_fpr(np.zeros(10, dtype=int), np.linspace(0, 1, 10), 0.05) is None
+
+
+def test_conformal_threshold_no_below_empirical_and_holds_fpr():
+    rng = np.random.default_rng(0)
+    human = rng.random(200)
+    c = conformal_threshold_for_fpr(human, 0.05)
+    assert c >= threshold_for_fpr(human, 0.05)  # conformal is >= the empirical quantile
+    assert (human > c).mean() <= 0.05  # the rate holds on the calibration set
+
+
+def test_conformal_threshold_inf_when_too_few_humans():
+    # n=3 can't certify a 1% FPR -> flag nothing rather than over-promise
+    assert conformal_threshold_for_fpr(np.array([0.1, 0.2, 0.3]), 0.01) == float("inf")
+
+
+def test_detection_from_scalar_collapses_edited_to_ai_side():
+    # ternary labels 0=human, 1=generated, 2=edited; edited counts as AI (>0) for detection.
+    labels = np.array([0, 0, 1, 2])
+    scores = np.array([0.05, 0.10, 0.90, 0.80])   # both AI (gen+edited) above both humans
+    out = detection_from_scalar(scores, labels)
+    assert out["auroc"] == 1.0            # perfectly separable human vs any-AI
+    assert out["tpr@fpr5"] == 1.0
+    assert out["n"] == 4
+    assert set(out) == {"auroc", "n", "tpr@fpr1", "tpr@fpr5"}
+
+
+def test_detection_from_scalar_single_class_is_none():
+    out = detection_from_scalar(np.array([0.2, 0.4, 0.6]), np.array([0, 0, 0]))
+    assert out["auroc"] is None and out["tpr@fpr1"] is None  # no AI rows → undefined
+
+
+def test_grouped_conformal_takes_hardest_group():
+    scores = np.concatenate([np.full(100, 0.2), np.full(100, 0.8)])  # group b runs hotter
+    groups = np.array(["a"] * 100 + ["b"] * 100)
+    t = grouped_conformal_threshold(scores, groups, 0.05)
+    assert t == conformal_threshold_for_fpr(scores[groups == "b"], 0.05) == 0.8

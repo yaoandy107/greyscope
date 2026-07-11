@@ -1,7 +1,11 @@
 """Text preprocessing, ported from pangramlabs/EditLens scripts/preprocess.py.
 
-`clean_text` is kept functionally identical so our numbers stay comparable to the
-OpenPangram baselines, which were trained on `clean_text`-normalized inputs.
+The EditLens pipeline (emoji / think-tag / header / lowercase / whitespace) is kept
+intact so EN numbers stay comparable to the OpenPangram baselines. v2 prepends Unicode
+hardening (`normalize_unicode`: homoglyph fold + invisible strip + NFKC) as the new
+default — a near-no-op on clean text, an attack defense on adversarial input. Pass
+`clean_text(text, normalize=False)` to reproduce the exact EditLens preprocessing
+(used for the v1-baseline comparison arm).
 
 Source: https://github.com/pangramlabs/EditLens/blob/main/scripts/preprocess.py
 """
@@ -9,6 +13,7 @@ Source: https://github.com/pangramlabs/EditLens/blob/main/scripts/preprocess.py
 from __future__ import annotations
 
 import re
+import unicodedata
 
 import emoji
 
@@ -50,7 +55,58 @@ def remove_ai_header(text: str) -> str:
     return text
 
 
-def clean_text(text: str) -> str:
+# Invisible characters attacks insert to break tokenization without changing the
+# rendered text. Stripped outright (mapped to None in the translation table).
+_INVISIBLE = [
+    "­",  # soft hyphen
+    "​",  # zero-width space
+    "‌",  # zero-width non-joiner
+    "‍",  # zero-width joiner
+    "‎",  # left-to-right mark
+    "‏",  # right-to-left mark
+    "⁠",  # word joiner
+    "᠎",  # mongolian vowel separator
+    "﻿",  # zero-width no-break space / BOM
+]
+
+# Cross-script homoglyphs (Cyrillic / Greek lookalikes of ASCII Latin) that NFKC does
+# NOT fold — the basis of RAID's homoglyph attack. Mapped back to ASCII so the model
+# sees the word it was trained on. Only these specific codepoints map, so CJK (Han /
+# kana / hangul) is untouched; NFKC's own CJK effect (half/full-width kana + digits →
+# canonical) is the intended ja/zh-tw normalization.
+_CONFUSABLES = {
+    # Cyrillic → Latin (uppercase)
+    "А": "A", "В": "B", "Е": "E", "К": "K", "М": "M",
+    "Н": "H", "О": "O", "Р": "P", "С": "C", "Т": "T",
+    "У": "Y", "Х": "X", "Ѕ": "S", "І": "I", "Ј": "J",
+    # Cyrillic → Latin (lowercase)
+    "а": "a", "е": "e", "о": "o", "р": "p", "с": "c",
+    "у": "y", "х": "x", "ѕ": "s", "і": "i", "ј": "j",
+    # Greek → Latin (uppercase)
+    "Α": "A", "Β": "B", "Ε": "E", "Ζ": "Z", "Η": "H",
+    "Ι": "I", "Κ": "K", "Μ": "M", "Ν": "N", "Ο": "O",
+    "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X",
+    # Greek → Latin (lowercase, near-identical glyphs only)
+    "ο": "o", "ρ": "p",
+}
+
+_TRANSLATE = {ord(k): v for k, v in _CONFUSABLES.items()}
+_TRANSLATE.update({ord(c): None for c in _INVISIBLE})
+
+
+def normalize_unicode(text: str) -> str:
+    """Unicode-harden against tokenization attacks: fold cross-script homoglyphs to
+    ASCII, strip invisible characters, then apply NFKC.
+
+    NFKC folds full-width / ligatures / compatibility forms but NOT Cyrillic/Greek
+    lookalikes, so the confusables map runs first. Near-idempotent on clean text.
+    """
+    return unicodedata.normalize("NFKC", text.translate(_TRANSLATE))
+
+
+def clean_text(text: str, *, normalize: bool = True) -> str:
+    if normalize:
+        text = normalize_unicode(text)
     text = normalize_emoji(text)
     text = remove_think_tag(text)
     text = remove_ai_header(text)

@@ -8,6 +8,7 @@ from greyscope.preprocess import (
     clean_text,
     count_words,
     normalize_emoji,
+    normalize_unicode,
     normalize_whitespace,
     remove_ai_header,
     remove_think_tag,
@@ -82,3 +83,50 @@ def test_score_to_bucket_middle_range():
     assert bucket_at_low in (1, 2)
     assert bucket_at_high in (1, 2)
     assert bucket_at_low <= bucket_at_high
+
+
+# --- v2 Unicode hardening (homoglyph / invisible-char defense) ---
+# The homoglyph and zero-width inputs mirror RAID's adversarial attack axes.
+
+
+def test_normalize_folds_cyrillic_homoglyphs_to_ascii():
+    # "pay" spelled with Cyrillic р/а/у — visually identical, different codepoints.
+    assert normalize_unicode("рау") == "pay"
+
+
+def test_normalize_folds_greek_uppercase_homoglyphs_to_ascii():
+    assert normalize_unicode("ΑΒΕ") == "ABE"
+
+
+def test_normalize_strips_zero_width_and_invisible_chars():
+    assert normalize_unicode("wo​rd") == "word"          # zero-width space
+    assert normalize_unicode("a‍⁠b﻿c") == "abc"  # ZWJ + word joiner + BOM
+
+
+def test_normalize_folds_fullwidth_latin_via_nfkc():
+    assert normalize_unicode("ＡＢＣ") == "ABC"
+
+
+def test_normalize_canonicalizes_halfwidth_katakana_via_nfkc():
+    # The intended ja normalization: half-width katakana → full-width canonical form.
+    assert normalize_unicode("ｱ") == "ア"
+
+
+def test_normalize_preserves_cjk_content():
+    for s in ("這是繁體中文文字", "日本語のテキスト", "한국어"):
+        assert normalize_unicode(s) == s
+
+
+def test_normalize_is_near_idempotent_on_clean_ascii():
+    s = "The quick brown fox jumps over the lazy dog."
+    assert normalize_unicode(s) == s
+
+
+def test_clean_text_applies_normalization_by_default():
+    assert clean_text("рay") == "pay"  # Cyrillic р folded, then lowercased
+
+
+def test_clean_text_normalize_false_reproduces_editlens_path():
+    # The v1-baseline arm: the Cyrillic homoglyph survives; only lowercase/whitespace run.
+    assert clean_text("рay", normalize=False) == "рay"
+    assert clean_text("рay", normalize=False) != clean_text("рay")

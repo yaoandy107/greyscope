@@ -35,14 +35,19 @@ def fetch_editlens_csv(name: str, data_dir: str) -> str:
     return dst
 
 
-def greyscope_score_fn(model, tok, *, n_buckets: int = 4, max_length: int = 2048) -> ScoreFn:
-    """Raw texts → scalar AI-ness scores: clean_text + prompt template + score_prompts."""
+def greyscope_score_fn(model, tok, *, n_buckets: int = 4, max_length: int = 2048,
+                       normalize: bool = True) -> ScoreFn:
+    """Raw texts → scalar AI-ness scores: clean_text + prompt template + score_prompts.
+
+    `normalize=False` reproduces the EditLens-faithful preprocessing (no Unicode
+    hardening) — the baseline arm for measuring the homoglyph/attack-axis recovery.
+    """
     from greyscope.data import PROMPT_TEMPLATE
     from greyscope.preprocess import clean_text
     from greyscope.scoring import score_prompts
 
     def score(texts: list[str]) -> np.ndarray:
-        prompts = [PROMPT_TEMPLATE.format(text=clean_text(str(t))) for t in texts]
+        prompts = [PROMPT_TEMPLATE.format(text=clean_text(str(t), normalize=normalize)) for t in texts]
         return score_prompts(model, tok, prompts, n_buckets, max_length=max_length)
 
     return score
