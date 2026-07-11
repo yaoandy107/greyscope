@@ -3,14 +3,15 @@ volumes, secrets, and the merged-model loader.
 
 Reproducing the model, from the repo root:
 
-    modal token new                                # one-time auth
-    modal secret create huggingface-token HF_TOKEN=...  # plus wandb-token for W&B
-    modal run modal/train.py::smoke                # pipeline smoke test (~$0.05, L4)
-    modal run --detach modal/train.py::production  # full training (~4 h, ~$10, A100-80GB)
-    modal run modal/release.py::export_and_validate  # merge LoRA into a deployable model
+    uv run modal token new                              # one-time auth
+    uv run modal secret create huggingface-token HF_TOKEN=...  # plus wandb-token for W&B
+    uv run modal run modal/train.py::smoke_v2           # v2 pipeline smoke (~$0.05, L4)
+    uv run modal run --detach modal/train.py::production_v2  # v2 train: Qwen3.5-4B fp8 (A100-80GB)
+    uv run modal run modal/release.py::export_and_validate   # merge LoRA into a deployable model
 
-Run entrypoints by file path as above, not with `-m`: `modal` is the SDK package, not
-this directory. `--detach` keeps long runs alive if the CLI disconnects.
+Always `uv run modal …`: the project pins modal 1.4.x, and a stale global `modal` (e.g.
+1.1.x on PATH) rejects newer args like `single_use_containers`. Run entrypoints by file
+path as above, not with `-m`. `--detach` keeps long runs alive if the CLI disconnects.
 """
 
 from __future__ import annotations
@@ -21,7 +22,10 @@ import modal
 
 _ROOT = Path(__file__).resolve().parent.parent
 
-image = (
+# Base image = pip/apt/env layers only. Keep local-source mounts OUT of it: Modal 1.4
+# forbids a build step after `add_local_*`, so an entrypoint that needs an extra pip layer
+# (e.g. raid-bench) extends `_base_image` and re-applies `with_local_sources` last.
+_base_image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("git", "build-essential", "cmake", "libedit-dev", "zlib1g-dev", "python3-dev")
     .uv_sync(extras=["train", "modal"], frozen=True)
@@ -32,12 +36,26 @@ image = (
         "HF_HUB_DISABLE_PROGRESS_BARS": "1",
     })
     # causal-conv1d omitted on purpose; the "fast path is not available" warning is benign.
-    .add_local_dir(str(_ROOT / "greyscope"), remote_path="/root/app/greyscope")
-    .add_local_dir(str(_ROOT / "scripts"), remote_path="/root/app/scripts")
-    .add_local_dir(str(_ROOT / "configs"), remote_path="/root/app/configs")
-    # Modal auto-mounts only the entrypoint file; this shared module ships explicitly.
-    .add_local_file(str(Path(__file__).resolve()), remote_path="/root/common.py")
 )
+
+
+def with_local_sources(img: modal.Image) -> modal.Image:
+    """Append the local source + data mounts. Must be the LAST build step (Modal adds these
+    files at container startup, so a later build step would force a rebuild on every change)."""
+    return (
+        img
+        .add_local_dir(str(_ROOT / "greyscope"), remote_path="/root/app/greyscope")
+        .add_local_dir(str(_ROOT / "scripts"), remote_path="/root/app/scripts")
+        .add_local_dir(str(_ROOT / "configs"), remote_path="/root/app/configs")
+        # v2 training reads the local trilingual splits; ship them so prepare_v2_data finds them
+        # (data/ is otherwise gitignored and absent from the container).
+        .add_local_dir(str(_ROOT / "data" / "v2" / "splits"), remote_path="/root/app/data/v2/splits")
+        # Modal auto-mounts only the entrypoint file; this shared module ships explicitly.
+        .add_local_file(str(Path(__file__).resolve()), remote_path="/root/common.py")
+    )
+
+
+image = with_local_sources(_base_image)
 
 app = modal.App("greyscope", image=image)
 
