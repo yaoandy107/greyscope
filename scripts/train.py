@@ -9,6 +9,16 @@ SMOKE_OVERRIDES / ABLATION_OVERRIDES presets in modal/train.py.
 
 from __future__ import annotations
 
+import os
+
+# Re-parse split CSVs each run. HF `datasets` caches parsed arrow keyed by file PATH (not
+# content), so a changed split at the same path (e.g. attack_paraphrase after adding human
+# negatives) is otherwise served stale from the persistent hf-cache volume — the post-train
+# OOD eval then reads an old AI-only slice (AUROC undefined). Point datasets at a fresh
+# per-container cache. MUST precede `import unsloth`: unsloth transitively imports datasets,
+# which freezes its cache-dir config at import time — setting this later has no effect.
+os.environ.setdefault("HF_DATASETS_CACHE", "/tmp/hfds_cache")
+
 # unsloth must be imported before transformers/peft for its kernel patches.
 # try/except so the file still imports on a Mac without unsloth.
 try:
@@ -19,7 +29,6 @@ except (ImportError, RuntimeError):
 import json
 import logging
 import math
-import os
 import sys
 from pathlib import Path
 
