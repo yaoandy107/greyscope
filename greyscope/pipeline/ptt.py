@@ -1,4 +1,4 @@
-"""PTT (批踢踢實業坊) scraper for the v2 zh-TW human corpus.
+"""PTT (批踢踢實業坊) scraper for the zh-TW human corpus.
 
 PTT is one MULTI-REGISTER source: casual (Gossiping), reviews (Food / MobileComm),
 creative (marvel / eWriter / Fiction). Same fetch/parse/ID story for every board, so
@@ -30,7 +30,7 @@ from bs4 import BeautifulSoup
 
 BASE_URL = "https://www.ptt.cc"
 CACHE_DIR = Path("data/v2/cache/ptt")
-_HEADERS = {"User-Agent": "Mozilla/5.0 (greyscope-v2 dataset build; research)"}
+_HEADERS = {"User-Agent": "Mozilla/5.0 (greyscope dataset build; research)"}
 _COOKIES = {"over18": "1"}  # bypass the age gate (Gossiping etc.); harmless elsewhere
 _RATE_LIMIT_S = 0.4  # polite delay between live fetches
 _SIGNATURE = "※ 發信站"  # body ends here; everything after is sig + edit notes

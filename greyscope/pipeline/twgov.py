@@ -1,4 +1,4 @@
-"""Taiwan government press-release scraper for the v2 zh-TW journalistic corpus.
+"""Taiwan government press-release scraper for the zh-TW journalistic corpus.
 
 zh-TW journalistic needs NATIVE Taiwan Traditional + pre-2022 + a permissive (edited-OK)
 license. The data.gov.tw open-data feeds are rolling "latest-N" CURRENT releases → they fail
@@ -45,7 +45,7 @@ BASE_URL = "https://www.gov.taipei"
 NEWS_NODE = "F0DDAF49B89E9413"  # 市府新聞稿 (integrated city press-release archive)
 SMS = "72544237BBE4C5F6"        # the category's own self-link s — never an article
 CACHE_DIR = Path("data/v2/cache/twgov")
-_HEADERS = {"User-Agent": "Mozilla/5.0 (greyscope-v2 dataset build; research)"}
+_HEADERS = {"User-Agent": "Mozilla/5.0 (greyscope dataset build; research)"}
 _SSL_CONTEXT = _ssl_context()
 _RATE_LIMIT_S = 0.4
 _ROC_YEAR_OFFSET = 1911  # 民國 year + 1911 = Gregorian (民國111 = 2022)

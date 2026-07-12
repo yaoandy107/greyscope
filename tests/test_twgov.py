@@ -1,9 +1,9 @@
-"""Tests for the Taiwan-gov news scraper (greyscope/v2/twgov.py): the pure parsers only
+"""Tests for the Taiwan-gov news scraper (greyscope/pipeline/twgov.py): the pure parsers only
 (ROC date math, news-row extraction with boilerplate/self-link exclusion, body extraction).
-The cached network paths (bisect, fetch_news) are not unit-tested — same policy as test_v2_ptt."""
+The cached network paths (bisect, fetch_news) are not unit-tested — same policy as test_ptt."""
 
-from greyscope.v2 import twgov
-from greyscope.v2.twgov import parse_article, parse_list, roc_to_year
+from greyscope.pipeline import twgov
+from greyscope.pipeline.twgov import parse_article, parse_list, roc_to_year
 
 
 def test_roc_to_year_converts_minguo_to_gregorian():

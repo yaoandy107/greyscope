@@ -43,38 +43,27 @@ def _train(cfg) -> None:
     from transformers.trainer_utils import get_last_checkpoint
 
     from greyscope.collator import DataCollatorForSeqCls
-    from greyscope.model import load_encoder_and_tokenizer, load_model_and_tokenizer
+    from greyscope.data import prepare_data
+    from greyscope.model import load_model_and_tokenizer
     from greyscope.trainer import (
         build_corn_trainer_class, build_sampler_trainer_class, build_weighted_trainer_class,
         make_compute_metrics, make_corn_compute_metrics,
     )
 
-    if getattr(cfg.data, "source", None) == "v2":
-        from greyscope.data import prepare_v2_data
-        log.info("Preparing v2 trilingual data from %s", cfg.data.splits_dir)
-        data = prepare_v2_data(cfg.data, splits_dir=cfg.data.splits_dir)
-    else:
-        from greyscope.data import prepare_data
-        log.info("Preparing data from %s", cfg.data.dataset)
-        data = prepare_data(cfg.data)
+    log.info("Preparing trilingual data from %s", cfg.data.splits_dir)
+    data = prepare_data(cfg.data, splits_dir=cfg.data.splits_dir)
     log.info("Train=%d  Val=%d  Test=%d", len(data.train), len(data.val), len(data.test))
 
-    arch = getattr(cfg.model, "arch", "decoder")
-    if arch == "encoder":
-        log.info("Loading encoder %s (full fine-tune)", cfg.model.name)
-        model, tokenizer = load_encoder_and_tokenizer(cfg)
-    else:
-        log.info("Loading model %s (seq-cls head)", cfg.model.name)
-        model, tokenizer = load_model_and_tokenizer(cfg)
+    log.info("Loading model %s (seq-cls head)", cfg.model.name)
+    model, tokenizer = load_model_and_tokenizer(cfg)
 
-    collator = DataCollatorForSeqCls(tokenizer=tokenizer, max_length=cfg.model.max_seq_length,
-                                     add_special_tokens=(arch == "encoder"))
+    collator = DataCollatorForSeqCls(tokenizer=tokenizer, max_length=cfg.model.max_seq_length)
 
     head = getattr(cfg.model, "head", "seqcls")
     use_sampler = getattr(cfg.training, "use_sample_weights", False)
-    # v2 balances language AND bucket via a WeightedRandomSampler (loss stays plain CE);
-    # v1 balances buckets via class-weighted CE. Use one mechanism, not both. The CORN head
-    # keeps the sampler but swaps cross-entropy for the ordinal conditional loss.
+    # Balance language AND bucket via a WeightedRandomSampler (loss stays plain CE); the
+    # class-weighted-CE path balances buckets via the loss. Use one mechanism, not both. The
+    # CORN head keeps the sampler but swaps cross-entropy for the ordinal conditional loss.
     if head == "corn":
         ranking_weight = getattr(cfg.model, "ranking_loss_weight", 0.0)
         log.info("CORN ordinal head: K−1 conditional logits + conditional loss%s%s.",
@@ -87,7 +76,7 @@ def _train(cfg) -> None:
             ranking_margin=getattr(cfg.model, "ranking_margin", 0.25),
         )
     elif use_sampler:
-        log.info("Balancing via joint language+bucket WeightedRandomSampler (v2).")
+        log.info("Balancing via joint language+bucket WeightedRandomSampler.")
         compute_metrics = make_compute_metrics(cfg.data.n_buckets)
         TrainerCls = build_sampler_trainer_class(data.sample_weights)
     else:
@@ -108,7 +97,7 @@ def _train(cfg) -> None:
 
     model_short = cfg.model.name.split("/")[-1]
     tag = os.path.basename(cfg.training.output_dir.rstrip("/")) or "run"
-    cap = "fullft" if arch == "encoder" else f"r{cfg.lora.r}"
+    cap = f"r{cfg.lora.r}"
     run_name = (
         f"{tag}-{model_short}-{cap}"
         f"-ep{cfg.training.num_train_epochs}-eb{effective_batch}"
@@ -195,23 +184,22 @@ def _train(cfg) -> None:
     with open(os.path.join(cfg.training.output_dir, "ternary_metrics.json"), "w") as fh:
         json.dump(ternary, fh, indent=2)
 
-    # OOD / generalization — the metric that actually decides recipe choices (v1's mistake was
-    # selecting on in-domain). Same val-calibrated thresholds, applied to the held-out splits.
-    if getattr(cfg.data, "source", None) == "v2":
-        ood = eval_ood_splits(
-            trainer, cfg.data.splits_dir,
-            ["test_llama", "test_enron", "ood_generator", "attack_paraphrase"],
-            cfg.data.n_buckets, head=head, flip=ternary["score_flipped"],
-            h_thresh=ternary["h_thresh"], ai_thresh=ternary["ai_thresh"], limit=1200,
-            use_prompt_template=getattr(cfg.data, "use_prompt_template", True))
-        log.info("=== OOD / generalization (val-calibrated thresholds) ===")
-        for name, r in ood.items():
-            rd = r["detection"]
-            pl = " ".join(f"{k}={v['macro_f1']:.3f}(n={v['n']})" for k, v in r["per_language"].items())
-            log.info("[OOD %-13s] macro-F1=%.4f · DETECTION AUROC=%s TPR@FPR1%%=%s TPR@FPR5%%=%s (n=%d)  %s",
-                     name, r["macro_f1"], _fmt(rd["auroc"]), _fmt(rd["tpr@fpr1"]), _fmt(rd["tpr@fpr5"]), r["n"], pl)
-        with open(os.path.join(cfg.training.output_dir, "ood_metrics.json"), "w") as fh:
-            json.dump(ood, fh, indent=2)
+    # OOD / generalization — the metric that actually decides recipe choices (selecting on
+    # in-domain is the mistake this avoids). Same val-calibrated thresholds on the held-out splits.
+    ood = eval_ood_splits(
+        trainer, cfg.data.splits_dir,
+        ["test_llama", "test_enron", "ood_generator", "attack_paraphrase"],
+        cfg.data.n_buckets, head=head, flip=ternary["score_flipped"],
+        h_thresh=ternary["h_thresh"], ai_thresh=ternary["ai_thresh"], limit=1200,
+        use_prompt_template=getattr(cfg.data, "use_prompt_template", True))
+    log.info("=== OOD / generalization (val-calibrated thresholds) ===")
+    for name, r in ood.items():
+        rd = r["detection"]
+        pl = " ".join(f"{k}={v['macro_f1']:.3f}(n={v['n']})" for k, v in r["per_language"].items())
+        log.info("[OOD %-13s] macro-F1=%.4f · DETECTION AUROC=%s TPR@FPR1%%=%s TPR@FPR5%%=%s (n=%d)  %s",
+                 name, r["macro_f1"], _fmt(rd["auroc"]), _fmt(rd["tpr@fpr1"]), _fmt(rd["tpr@fpr5"]), r["n"], pl)
+    with open(os.path.join(cfg.training.output_dir, "ood_metrics.json"), "w") as fh:
+        json.dump(ood, fh, indent=2)
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="train")

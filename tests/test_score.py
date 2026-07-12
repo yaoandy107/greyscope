@@ -1,4 +1,4 @@
-"""Tests for edit-magnitude scoring (greyscope/v2/score.py).
+"""Tests for edit-magnitude scoring (greyscope/pipeline/score.py).
 
 Pure: cosine/edit-magnitude math + the pairing logic via an injected fake embedder
 (no network). Guards that only ai_edited rows get scored and that identical texts
@@ -7,7 +7,7 @@ embed once.
 
 import pytest
 
-from greyscope.v2 import score
+from greyscope.pipeline import score
 
 
 def test_cosine_identity_orthogonal_and_zero_guard():

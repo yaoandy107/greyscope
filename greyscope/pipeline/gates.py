@@ -18,7 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from greyscope.preprocess import count_words
-from greyscope.v2.corpora import count_cjk_chars
+from greyscope.pipeline.corpora import count_cjk_chars
 
 # Unambiguous Simplified-only characters (their Traditional form differs AND the
 # Simplified glyph is not itself common Traditional) — a high-signal subset, not a

@@ -1,4 +1,4 @@
-"""Tests for the OpenRouter chat client (greyscope/v2/openrouter.py).
+"""Tests for the OpenRouter chat client (greyscope/pipeline/openrouter.py).
 
 No network: the cache-hit path is exercised by pre-writing a cached response, the
 miss path by stubbing the HTTP post. Guards the flex `served_tier` read-back, the
@@ -9,8 +9,8 @@ import json
 
 import pytest
 
-from greyscope.v2 import openrouter
-from greyscope.v2.openrouter import ChatResult, _chat_cache_path, _parse_chat, chat
+from greyscope.pipeline import openrouter
+from greyscope.pipeline.openrouter import ChatResult, _chat_cache_path, _parse_chat, chat
 
 _RAW = {
     "model": "openai/gpt-5.5",

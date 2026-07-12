@@ -1,12 +1,12 @@
-"""Tests for v2 human-corpus normalization (greyscope/v2/corpora.py).
+"""Tests for human-corpus normalization (greyscope/pipeline/corpora.py).
 
 These guard the source-artifact anti-confound logic: if wiki40b
 tokens or Aozora ruby leaked into "human" text, the detector would learn the
 markup instead of authorship. Pure functions — no network, no `datasets`.
 """
 
-from greyscope.v2 import corpora
-from greyscope.v2.corpora import (
+from greyscope.pipeline import corpora
+from greyscope.pipeline.corpora import (
     HumanRecord,
     _as_str,
     chunk_passages,
@@ -106,7 +106,7 @@ def test_load_aozora_filters_orthography_chunks_and_stamps_ids(monkeypatch):
 
 
 def test_load_wikinews_ja_maps_records_and_filters_floor(monkeypatch):
-    from greyscope.v2 import wikinews
+    from greyscope.pipeline import wikinews
 
     arts = [
         {"pageid": 11479, "revid": 74204, "timestamp": "2009-08-18T09:22:24Z",
@@ -137,7 +137,7 @@ def test_load_amazon_reviews_ja_maps_records_and_filters_floor(monkeypatch):
 
 
 def test_load_twgov_maps_records_and_filters_floor(monkeypatch):
-    from greyscope.v2 import twgov
+    from greyscope.pipeline import twgov
 
     arts = [
         {"s": "ABC123", "title": "市政測試新聞", "unit": "臺北市政府測試局",

@@ -85,31 +85,3 @@ def load_model_and_tokenizer(cfg) -> tuple[Any, Any]:
         modules_to_save=["score"],
     )
     return model, tokenizer
-
-
-def load_encoder_and_tokenizer(cfg) -> tuple[Any, Any]:
-    """Load a multilingual ENCODER (mDeBERTa-v3 / XLM-R) as a FULL fine-tune seq-cls/CORN
-    backbone — the lite-tier bake-off arm. Plain transformers, no Unsloth and no LoRA:
-    encoders are small enough to fully fine-tune, and 2026 detection results show full-FT ≥
-    LoRA here. Weights load in fp32 (master weights); `bf16=true` autocasts the compute.
-
-    Mirrors the decoder loader's contract — right padding, pad-token fallback, and head_type /
-    n_buckets stamped on the config so eval + inference pick the CORN decode — so the shared
-    trainer/eval path works unchanged. CORN emits K−1 logits; seq-cls emits K.
-    """
-    from transformers import AutoModelForSequenceClassification, AutoTokenizer
-
-    head = getattr(cfg.model, "head", "seqcls")
-    n_out = (cfg.data.n_buckets - 1) if head == "corn" else cfg.data.n_buckets
-
-    log.info("Loading encoder %s (full-FT) head=%s (out=%d, n_buckets=%d).",
-             cfg.model.name, head, n_out, cfg.data.n_buckets)
-    tokenizer = AutoTokenizer.from_pretrained(cfg.model.name)
-    if tokenizer.pad_token_id is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "right"  # the seq-cls head pools the [CLS]/first token, never padding
-    model = AutoModelForSequenceClassification.from_pretrained(cfg.model.name, num_labels=n_out)
-    model.config.pad_token_id = tokenizer.pad_token_id
-    model.config.head_type = head
-    model.config.n_buckets = cfg.data.n_buckets
-    return model, tokenizer

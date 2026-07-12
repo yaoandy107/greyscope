@@ -118,8 +118,8 @@ def build_sampler_trainer_class(sample_weights: list[float] | None):
     per-sample weights (joint language+bucket balancing, from data.compute_sample_weights).
 
     Loss stays plain CE: the sampler already balances buckets, so class-weighting on top
-    would double-count. Use this OR build_weighted_trainer_class, not both. For v2 the
-    sampler is preferred because it balances *language* too, which loss class-weights can't.
+    would double-count. Use this OR build_weighted_trainer_class, not both. The sampler is
+    preferred here because it balances *language* too, which loss class-weights can't.
     """
     import torch
     from torch.utils.data import WeightedRandomSampler
@@ -142,7 +142,7 @@ def build_sampler_trainer_class(sample_weights: list[float] | None):
 def build_corn_trainer_class(sample_weights: list[float] | None,
                              ranking_weight: float = 0.0, ranking_margin: float = 0.25):
     """Trainer for the CORN ordinal head: the joint language+bucket WeightedRandomSampler
-    (as in the seq-cls v2 path) plus the CORN conditional loss instead of cross-entropy.
+    (as in the seq-cls path) plus the CORN conditional loss instead of cross-entropy.
 
     `ranking_weight > 0` adds the MELD hard-negative ranking loss at the human/AI boundary
     (corn.corn_ranking_loss) — the TPR@low-FPR lever. 0 (default) = the plain conditional loss."""

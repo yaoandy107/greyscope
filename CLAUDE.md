@@ -2,23 +2,25 @@
 
 A detector that estimates *how much* of a text is AI-written (human → AI-edited → AI-generated) as a
 continuous `ai_involvement` score, not a binary verdict. Qwen3.5-4B LoRA, 4-bucket CORN ordinal head.
-v1 ships EN (CC BY-NC-SA); v2 targets a **trilingual (EN/ja/zh-TW), Apache-2.0** model.
+The **shipped** model is English only (CC BY-NC-SA, git tag `v1.0`); this branch builds its successor —
+a **trilingual (EN/ja/zh-TW), Apache-2.0** model. The code is de-versioned (one recipe, one set of
+entrypoints — the previous model is recoverable from `v1.0`); only the dataset artifacts are versioned,
+under `data/v2/`.
 
 ## Layout
 
-- `greyscope/` — the **v1 model** (English): `inference.py`, `model.py`/`trainer.py`/`collator.py`,
-  `eval.py`/`benchmark.py`/`calibration.py`, `preprocess.py` (the EditLens-ported text normalization +
-  `score_to_bucket`). Training/release run on Modal (`modal/`, `configs/train.yaml`).
-- `greyscope/v2/` — the **v2 dataset pipeline**: a trilingual (EN / ja / zh-TW) EditLens-recipe clone,
-  all three languages built the same way (registry mirror+edit generation). `data/v2/splits/` is complete
-  (EN topped up 2026-07-11 to fill the graded middle → 7.6%, ja/zh untouched); the trilingual model is not
-  trained yet. **EditLens is EVAL-only** (the `test_llama`/`test_enron` slices)
-  so v2 can ship Apache-2.0 — EN trains on permissive sources only.
+- `greyscope/` — the model code: `inference.py`, `model.py`/`trainer.py`/`collator.py`/`corn.py`,
+  `eval.py`/`benchmark.py`/`calibration.py`, `export.py`, `preprocess.py` (EditLens-ported normalization
+  + Unicode hardening + `score_to_bucket`). Training/release run on Modal (`modal/`, `configs/train.yaml`).
+- `greyscope/pipeline/` — the trilingual dataset build (EN / ja / zh-TW), an EditLens-recipe clone; all
+  three languages built the same way (registry mirror+edit generation). `data/v2/splits/` is complete
+  (EN topped up 2026-07-11 to fill the graded middle → 7.6%). **EditLens is EVAL-only** (the
+  `test_llama`/`test_enron` slices) so the model ships Apache-2.0 — EN trains on permissive sources only.
 - `tests/` — pytest. `data/` and `.agents/memory/` are gitignored.
 
-## v2 pipeline (`greyscope/v2/`)
+## Dataset pipeline (`greyscope/pipeline/`)
 
-Stages-as-files, wired by the build driver `scripts/v2_build.py` (`--smoke` cheap-validates new
+Stages-as-files, wired by the build driver `scripts/build.py` (`--smoke` cheap-validates new
 sources; `--full` is the real run):
 
 `corpora` (human loaders + source-artifact normalization; EN humans are permissive — fineweb / arxiv /
@@ -60,17 +62,18 @@ Design spec, implementation plan, and the running experiment log live in `.agent
 ```bash
 pytest -q          # tests
 ruff check .       # lint
-python scripts/v2_build.py                    # dry run (no spend)
-python scripts/v2_build.py --assemble-only    # rebuild splits from cache (no spend)
-python scripts/v2_build.py --topup-en N       # generate N new EN docs + append (SPENDS)
-python scripts/v2_build.py --paraphrase-estimate  # grounded cost of the paraphrase stage (no spend)
-python scripts/v2_build.py --paraphrase       # build paraphrase aug + attack slices (SPENDS)
+python scripts/build.py                    # dry run (no spend)
+python scripts/build.py --assemble-only    # rebuild splits from cache (no spend)
+python scripts/build.py --topup-en N       # generate N new EN docs + append (SPENDS)
+python scripts/build.py --paraphrase-estimate  # grounded cost of the paraphrase stage (no spend)
+python scripts/build.py --paraphrase       # build paraphrase aug + attack slices (SPENDS)
 ```
 
-## v2 training (`configs/train_v2.yaml`, `modal/train.py::production_v2`)
+## Training (`configs/train.yaml`, `modal/train.py::production`)
 
 Qwen3.5-4B LoRA + CORN 4-bucket ordinal head + MELD hard-negative ranking loss, joint
 language×bucket sampler (τ=0.5), paraphrase aug folded in (`data.train_extra_files`). Checkpoint
 selection on `eval_detection_auroc` (not 4-bucket macro-F1 — the thin middle is noisy). Post-train
 OOD scoreboard = `test_llama`/`test_enron`/`ood_generator`/`attack_paraphrase`. Ship bf16 LoRA →
-int4-HQQ (`greyscope/export.py`). Not trained yet — `production_v2` is the single committed run.
+int4-HQQ (`greyscope/export.py`). Modal ladder: `smoke` (0.8B/64 rows, plumbing) → `ablation`
+(12k, one knob) → `production` (the full run). Not trained yet — `production` is the single committed run.

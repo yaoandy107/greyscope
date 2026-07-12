@@ -12,7 +12,7 @@ def build_calibration(model, tok, data, extra_human_subgroups=None, *, head: str
                       n_buckets: int = 4, max_length: int = 2048,
                       binary_fpr_target: float = 0.01) -> dict:
     """Return the calibration dict for `model`, given prepared `data` (a PreparedData whose
-    val/test carry `text_type`, and — for v2 — a `language` column).
+    val/test carry `text_type`, and — when trilingual — a `language` column).
 
     `head="corn"` decodes the K−1 ordinal logits via the cumulative-sigmoid product; `head`
     also rides in the output so inference picks the matching decode. `extra_human_subgroups`
@@ -43,8 +43,8 @@ def build_calibration(model, tok, data, extra_human_subgroups=None, *, head: str
     h_thresh, ai_thresh, _, _ = calibrate_thresholds(vlab, vscaled)
 
     # Per-subgroup binary threshold at the target FPR; the MAX binds (hardest human group),
-    # so pooling can't let the easy in-domain majority dominate the quantile. v2 groups val
-    # humans by language (ja/zh-TW join the worst-subgroup calibration); v1 has one val group.
+    # so pooling can't let the easy in-domain majority dominate the quantile. A trilingual val
+    # groups humans by language (ja/zh-TW join the worst-subgroup calibration); EN-only has one.
     human_mask = vlab == 0
     val_humans = vscaled[human_mask]
     subgroup_thr: dict[str, float] = {}

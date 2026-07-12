@@ -38,7 +38,7 @@ def compute_sample_weights(
     """Per-sample weights that balance language AND bucket jointly: smoothed inverse
     (language, bucket) frequency, normalized to mean 1.
 
-    The v2 mix is mildly language-skewed (EN ~39% / ja ~32% / zh-tw ~29%) and heavily
+    The trilingual mix is mildly language-skewed (EN ~39% / ja ~32% / zh-tw ~29%) and heavily
     bucket-skewed — the graded middle (buckets 1–2) is only ~6% of rows, since it comes
     solely from edits. Bucket class-weights alone can't rebalance *within* a language; joint
     (language, bucket) inverse-frequency lifts the thin middle cells without letting any
@@ -67,10 +67,10 @@ class PreparedData:
     test: Any
     class_weights: list[float]
     n_buckets: int
-    sample_weights: list[float] | None = None  # per-train-row; v2 language+bucket balancing
+    sample_weights: list[float] | None = None  # per-train-row; language+bucket balancing
 
 
-def _prepare_split(split, cfg, subset: int | None):
+def _prepare_editlens_split(split, cfg, subset: int | None):
     if subset:  # subsample before the maps; 3x buffer covers rows the min_words filter drops
         split = split.shuffle(seed=cfg.seed).select(range(min(subset * 3, len(split))))
     split = split.filter(lambda ex: count_words(ex["text"]) >= cfg.min_words)
@@ -84,33 +84,36 @@ def _prepare_split(split, cfg, subset: int | None):
     return split.map(lambda ex: {"prompt": PROMPT_TEMPLATE.format(text=ex["text"])})
 
 
-def prepare_data(cfg) -> PreparedData:
-    """Load pangram/editlens_iclr and return formatted train/val/test + class weights."""
+def prepare_editlens_data(cfg) -> PreparedData:
+    """Load pangram/editlens_iclr and return formatted train/val/test + class weights.
+
+    EditLens is EVAL-only in this repo (the EN benchmark, RAID flip calibration, and the
+    deploy calibration bundle); the shipped model trains on the trilingual splits below.
+    """
     from datasets import load_dataset
 
     raw = load_dataset(cfg.dataset)
-    train = _prepare_split(raw["train"], cfg, cfg.train_subset)
+    train = _prepare_editlens_split(raw["train"], cfg, cfg.train_subset)
     return PreparedData(
         train=train,
-        val=_prepare_split(raw["val"], cfg, cfg.val_subset),
-        test=_prepare_split(raw["test"], cfg, cfg.test_subset),
+        val=_prepare_editlens_split(raw["val"], cfg, cfg.val_subset),
+        test=_prepare_editlens_split(raw["test"], cfg, cfg.test_subset),
         class_weights=compute_class_weights(train["label"], cfg.n_buckets),
         n_buckets=cfg.n_buckets,
     )
 
 
-V2_SPLITS_DIR = "data/v2/splits"
+SPLITS_DIR = "data/v2/splits"
 
 
-def _prepare_v2_split(split, *, apply_clean: bool, subset: int | None = None, seed: int = 42,
+def _prepare_split(split, *, apply_clean: bool, subset: int | None = None, seed: int = 42,
                       use_prompt_template: bool = True):
-    """Format a v2 split for training. The precomputed per-language `bucket` is the label.
+    """Format a training split. The precomputed per-language `bucket` is the label.
 
     No English word-count filter: `count_words` treats a CJK run as ~one word, so a
-    `min_words` gate would delete nearly every ja/zh-tw row — the v2 build gates already
+    `min_words` gate would delete nearly every ja/zh-tw row — the build gates already
     enforce length per language. `clean_text` is CJK-safe (lower/whitespace are no-ops there).
-    `subset` (smoke runs) samples after shuffle. `use_prompt_template=False` puts the raw text
-    in `prompt` (the encoder arm classifies from [CLS] — the instruction wastes its context).
+    `subset` (smoke runs) samples after shuffle.
     """
     if subset:
         split = split.shuffle(seed=seed).select(range(min(subset, len(split))))
@@ -121,8 +124,8 @@ def _prepare_v2_split(split, *, apply_clean: bool, subset: int | None = None, se
                                             if use_prompt_template else ex["text"])})
 
 
-def prepare_v2_data(cfg, splits_dir: str = V2_SPLITS_DIR) -> PreparedData:
-    """Load the local trilingual v2 splits for training. Buckets are precomputed with
+def prepare_data(cfg, splits_dir: str = SPLITS_DIR) -> PreparedData:
+    """Load the local trilingual splits for training. Buckets are precomputed with
     per-language cuts (used directly); returns both bucket class-weights and joint
     language+bucket per-sample weights so the EN-heavy mix can be balanced at train time.
     """
@@ -138,13 +141,13 @@ def prepare_v2_data(cfg, splits_dir: str = V2_SPLITS_DIR) -> PreparedData:
     raw = load_dataset("csv", data_files=files,
                        usecols=["text", "language", "text_type", "bucket"])
     use_prompt = getattr(cfg, "use_prompt_template", True)
-    train = _prepare_v2_split(raw["train"], apply_clean=cfg.apply_clean_text,
+    train = _prepare_split(raw["train"], apply_clean=cfg.apply_clean_text,
                               subset=cfg.train_subset, seed=cfg.seed, use_prompt_template=use_prompt)
     return PreparedData(
         train=train,
-        val=_prepare_v2_split(raw["val"], apply_clean=cfg.apply_clean_text,
+        val=_prepare_split(raw["val"], apply_clean=cfg.apply_clean_text,
                               subset=cfg.val_subset, seed=cfg.seed, use_prompt_template=use_prompt),
-        test=_prepare_v2_split(raw["test"], apply_clean=cfg.apply_clean_text,
+        test=_prepare_split(raw["test"], apply_clean=cfg.apply_clean_text,
                                subset=cfg.test_subset, seed=cfg.seed, use_prompt_template=use_prompt),
         class_weights=compute_class_weights(train["label"], cfg.n_buckets),
         sample_weights=compute_sample_weights(

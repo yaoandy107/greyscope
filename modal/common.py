@@ -5,8 +5,8 @@ Reproducing the model, from the repo root:
 
     uv run modal token new                              # one-time auth
     uv run modal secret create huggingface-token HF_TOKEN=...  # plus wandb-token for W&B
-    uv run modal run modal/train.py::smoke_v2           # v2 pipeline smoke (~$0.05, L4)
-    uv run modal run --detach modal/train.py::production_v2  # v2 train: Qwen3.5-4B fp8 (A100-80GB)
+    uv run modal run modal/train.py::smoke              # pipeline smoke (~$0.05, L4)
+    uv run modal run --detach modal/train.py::production  # train: Qwen3.5-4B (A100-40GB)
     uv run modal run modal/release.py::export_and_validate   # merge LoRA into a deployable model
 
 Always `uv run modal …`: the project pins modal 1.4.x, and a stale global `modal` (e.g.
@@ -47,7 +47,7 @@ def with_local_sources(img: modal.Image) -> modal.Image:
         .add_local_dir(str(_ROOT / "greyscope"), remote_path="/root/app/greyscope")
         .add_local_dir(str(_ROOT / "scripts"), remote_path="/root/app/scripts")
         .add_local_dir(str(_ROOT / "configs"), remote_path="/root/app/configs")
-        # v2 training reads the local trilingual splits; ship them so prepare_v2_data finds them
+        # training reads the local trilingual splits; ship them so prepare_data finds them
         # (data/ is otherwise gitignored and absent from the container).
         .add_local_dir(str(_ROOT / "data" / "v2" / "splits"), remote_path="/root/app/data/v2/splits")
         # Modal auto-mounts only the entrypoint file; this shared module ships explicitly.
@@ -75,7 +75,7 @@ _TRAINING_SECRETS = [hf_secret, wandb_secret]
 
 # Paths inside the container; MERGED_DEFAULT is the shipped run's merged artifact.
 OUT_ROOT = "/root/app/outputs"
-MERGED_DEFAULT = "export_production_v2/merged"
+MERGED_DEFAULT = "export_production/merged"
 
 
 def use_app_packages(forbid_unsloth: bool = True) -> None:

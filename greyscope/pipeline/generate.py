@@ -20,8 +20,8 @@ from pathlib import Path
 
 import yaml
 
-from greyscope.v2 import openrouter
-from greyscope.v2.corpora import count_cjk_chars
+from greyscope.pipeline import openrouter
+from greyscope.pipeline.corpora import count_cjk_chars
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 GENERATED_DIR = Path("data/v2/generated")

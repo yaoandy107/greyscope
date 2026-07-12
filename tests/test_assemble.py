@@ -1,11 +1,11 @@
-"""Tests for assembly (greyscope/v2/assemble.py): per-language bucketing, split-by-source-doc
+"""Tests for assembly (greyscope/pipeline/assemble.py): per-language bucketing, split-by-source-doc
 (derivatives co-locate, the edit's tag drives the split), the build-only field strip, and
 CSV + prompt-manifest emission."""
 
 import csv
 import json
 
-from greyscope.v2 import assemble
+from greyscope.pipeline import assemble
 
 
 def _doc(lang, source, sid, *, edit_cosine, split_tag):

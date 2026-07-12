@@ -25,10 +25,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from greyscope.preprocess import score_to_bucket
-from greyscope.v2 import openrouter, score
-from greyscope.v2.assemble import BUCKET_CUTS, N_BUCKETS, SPLITS_DIR, _COLUMNS
-from greyscope.v2.gates import SIMPLIFIED_DROP_RATIO, simplified_ratio
-from greyscope.v2.generate import (
+from greyscope.pipeline import openrouter, score
+from greyscope.pipeline.assemble import BUCKET_CUTS, N_BUCKETS, SPLITS_DIR, _COLUMNS
+from greyscope.pipeline.gates import SIMPLIFIED_DROP_RATIO, simplified_ratio
+from greyscope.pipeline.generate import (
     GEN_CONCURRENCY, MAX_COMPLETION_TOKENS, _seeded_index, _strip_ai_header, _strip_think,
 )
 

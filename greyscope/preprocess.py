@@ -1,11 +1,11 @@
 """Text preprocessing, ported from pangramlabs/EditLens scripts/preprocess.py.
 
 The EditLens pipeline (emoji / think-tag / header / lowercase / whitespace) is kept
-intact so EN numbers stay comparable to the OpenPangram baselines. v2 prepends Unicode
-hardening (`normalize_unicode`: homoglyph fold + invisible strip + NFKC) as the new
+intact so EN numbers stay comparable to the OpenPangram baselines. This repo prepends
+Unicode hardening (`normalize_unicode`: homoglyph fold + invisible strip + NFKC) as the
 default — a near-no-op on clean text, an attack defense on adversarial input. Pass
 `clean_text(text, normalize=False)` to reproduce the exact EditLens preprocessing
-(used for the v1-baseline comparison arm).
+(used for the EditLens-baseline comparison arm).
 
 Source: https://github.com/pangramlabs/EditLens/blob/main/scripts/preprocess.py
 """

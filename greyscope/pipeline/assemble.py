@@ -24,7 +24,7 @@ PROMPTS_DIR = Path(__file__).parent / "prompts"
 N_BUCKETS = 4
 
 # Per-language 4-bucket cuts: lo=p22, hi=p80 of that language's edit-cosine (Qwen3-Embedding-8B)
-# distribution → ~22/35/22/20 spread. Recompute after a registry change (v2_build.py prints the cuts).
+# distribution → ~22/35/22/20 spread. Recompute after a registry change (build.py prints the cuts).
 BUCKET_CUTS = {"en": (0.029, 0.148), "ja": (0.019, 0.111), "zh-tw": (0.018, 0.096)}
 
 # Dropped from the training/shipped view: the human original the scorer

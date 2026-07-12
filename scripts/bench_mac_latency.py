@@ -11,7 +11,7 @@ Mac numbers are a conservative floor.
 
     python scripts/bench_mac_latency.py
     python scripts/bench_mac_latency.py --dtype float32 --runs 30
-    python scripts/bench_mac_latency.py --greyscope-path outputs/production_v2/merged
+    python scripts/bench_mac_latency.py --greyscope-path outputs/production/merged
 """
 
 from __future__ import annotations

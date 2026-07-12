@@ -24,7 +24,7 @@ from typing import Iterable
 import httpx
 
 BASE_URL = "https://openrouter.ai/api/v1"
-EMBED_MODEL = "qwen/qwen3-embedding-8b"  # locked v2 edit-magnitude scorer
+EMBED_MODEL = "qwen/qwen3-embedding-8b"  # locked edit-magnitude scorer
 EMBED_CACHE_DIR = Path("data/v2/cache/embeddings")
 CHAT_CACHE_DIR = Path("data/v2/cache/chat")
 

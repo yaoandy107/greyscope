@@ -1,7 +1,7 @@
 import csv
 import json
 
-from greyscope.v2 import paraphrase
+from greyscope.pipeline import paraphrase
 
 
 def _row(i, lang="en", text_type="ai_generated", bucket=3, text="Some AI text here."):

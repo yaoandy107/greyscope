@@ -1,11 +1,11 @@
-"""Tests for EN decontamination (greyscope/v2/decontam.py): word-n-gram containment,
+"""Tests for EN decontamination (greyscope/pipeline/decontam.py): word-n-gram containment,
 the pre-generation filter (drop contaminated EN humans, keep clean, pass non-EN through),
 RAID-CSV human extraction, the resumable-download size math, and the drop-reason shape.
 The network download itself is exercised by the build's extraction step, not here."""
 
 import csv
 
-from greyscope.v2 import decontam
+from greyscope.pipeline import decontam
 
 
 def _row(text, *, language="en", source="editlens", sid="d1"):

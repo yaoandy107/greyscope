@@ -1,11 +1,11 @@
-"""Tests for the quality gates (greyscope/v2/gates.py).
+"""Tests for the quality gates (greyscope/pipeline/gates.py).
 
 Covers each per-sample gate's asymmetry (human rows bypass AI checks; edits exempt
 from length/regurgitation), the zh-TW Simplified script gate, within-text_type
 near-dedup, and the run_gates orchestration + drop reasons.
 """
 
-from greyscope.v2 import gates
+from greyscope.pipeline import gates
 
 
 def _row(text, text_type="ai_generated", language="en", source_text=None,

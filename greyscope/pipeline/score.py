@@ -16,7 +16,7 @@ from typing import Callable
 
 import numpy as np
 
-from greyscope.v2 import openrouter
+from greyscope.pipeline import openrouter
 
 SCORER_MODEL = "qwen/qwen3-embedding-8b"
 # Cap embed inputs: a few fineweb/gutenberg sources run to 80–150k chars and the embedding provider

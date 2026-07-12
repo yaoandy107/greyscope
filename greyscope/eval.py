@@ -210,7 +210,7 @@ def grouped_conformal_threshold(human_scores: np.ndarray, groups, target_fpr: fl
     """Max conformal threshold across human subgroups, so the FPR target holds for the
     *hardest* group (non-native writers / each language) — not just the easy majority.
     Pooling would let the in-domain majority dominate the quantile and inflate the rate
-    on the vulnerable group (v1's false-accusation failure mode)."""
+    on the vulnerable group (the false-accusation failure mode)."""
     scores = np.asarray(human_scores, dtype=float)
     groups = np.asarray(groups)
     thresholds = [conformal_threshold_for_fpr(scores[groups == g], target_fpr)
@@ -316,9 +316,9 @@ def run_ternary_eval(
         "score_flipped": flipped,
     }
 
-    # Per-language breakdown (v2 trilingual): same global thresholds, F1 + human-vs-AI
+    # Per-language breakdown (trilingual): same global thresholds, F1 + human-vs-AI
     # detection (AUROC / TPR@FPR self-calibrated per language, so the FPR target holds for
-    # the hardest language, not just the pooled majority). Absent for v1 (no language).
+    # the hardest language, not just the pooled majority). Absent when there is no language column.
     cols = getattr(test_dataset, "column_names", [])
     if "language" in cols:
         langs = np.asarray(test_dataset["language"])
@@ -368,7 +368,7 @@ def eval_ood_splits(trainer, splits_dir, split_names, n_buckets, *, head, flip,
                     h_thresh, ai_thresh, apply_clean=True, limit=None,
                     use_prompt_template=True) -> dict:
     """Score held-out OOD splits with the *val-calibrated* thresholds → ternary macro-F1 +
-    per-language, the generalization check the in-domain test can't give (v1's selection flaw).
+    per-language, the generalization check the in-domain test can't give (the in-domain-selection flaw).
 
     Per-split min-max scaling + the frozen val thresholds, matching the OOD protocol. Missing
     split files are skipped. `head="corn"` uses the ordinal cumulative decode. `limit`
@@ -379,7 +379,7 @@ def eval_ood_splits(trainer, splits_dir, split_names, n_buckets, *, head, flip,
 
     from datasets import load_dataset
 
-    from greyscope.data import _prepare_v2_split
+    from greyscope.data import _prepare_split
 
     results: dict = {}
     for name in split_names:
@@ -388,7 +388,7 @@ def eval_ood_splits(trainer, splits_dir, split_names, n_buckets, *, head, flip,
             continue
         raw = load_dataset("csv", data_files=path,
                            usecols=["text", "language", "text_type", "bucket"])["train"]
-        ds = _prepare_v2_split(raw, apply_clean=apply_clean, subset=limit,
+        ds = _prepare_split(raw, apply_clean=apply_clean, subset=limit,
                                use_prompt_template=use_prompt_template)
         logits = _predict_bucket_logits(trainer, ds)
         if head == "corn":

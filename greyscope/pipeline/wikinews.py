@@ -1,4 +1,4 @@
-"""Japanese Wikinews scraper for the v2 ja journalistic corpus.
+"""Japanese Wikinews scraper for the ja journalistic corpus.
 
 ja has no clean HF full-article Wikinews source (`malteos/wikinews` omits ja), so this pulls
 from the MediaWiki API the way `ptt.py` pulls PTT: pure parsers + a cached, polite `_get_json`.
@@ -30,7 +30,7 @@ from bs4 import BeautifulSoup
 
 API_URL = "https://ja.wikinews.org/w/api.php"
 CACHE_DIR = Path("data/v2/cache/wikinews-ja")
-_HEADERS = {"User-Agent": "greyscope-v2 dataset build (research; contact yaoandy107@gmail.com)"}
+_HEADERS = {"User-Agent": "greyscope dataset build (research; contact yaoandy107@gmail.com)"}
 _RATE_LIMIT_S = 0.3  # polite delay between live API calls
 _CUTOFF_ISO = "2022-01-01T00:00:00Z"  # pre-2022 contamination defense
 _DATELINE_RE = re.compile(r"【\s*(20\d{2})年(\d{1,2})月(\d{1,2})日\s*】")

@@ -25,18 +25,25 @@ def test_train_yaml_is_the_shipped_recipe():
     cfg = omegaconf.OmegaConf.load(CONFIGS_DIR / "train.yaml")
 
     assert cfg.model.name == "unsloth/Qwen3.5-4B-Base"
-    assert cfg.lora.r == 32 and cfg.lora.alpha == 32  # alpha=r -> scale 1.0
+    assert cfg.model.head == "corn"                       # K-1 ordinal head
+    assert cfg.model.ranking_loss_weight == 0.1           # MELD hard-neg ranking loss
+    assert cfg.lora.r == 32 and cfg.lora.alpha == 32      # alpha=r -> scale 1.0
+    assert cfg.data.splits_dir == "data/v2/splits"
     assert cfg.data.n_buckets == 4
-    assert cfg.data.train_subset is None              # full 60k
-    assert cfg.training.num_train_epochs == 3
+    assert cfg.data.train_subset is None                  # full trilingual set
+    assert cfg.data.sample_weight_temperature == 0.5      # joint language+bucket sampler
+    assert any("train_aug_paraphrase" in f for f in cfg.data.train_extra_files)  # paraphrase aug
+    assert cfg.training.num_train_epochs == 2
     assert (
         cfg.training.per_device_train_batch_size
         * cfg.training.gradient_accumulation_steps
         == 16
     ), "effective batch must stay at 16 for recipe parity"
-    assert cfg.training.warmup_ratio == 0.05          # stability fix
-    assert cfg.training.max_grad_norm == 1.0          # stability fix
-    assert cfg.training.weight_decay == 0.01          # stability fix
+    assert cfg.training.use_sample_weights is True
+    assert cfg.training.metric_for_best_model == "eval_detection_auroc"  # select on detection
+    assert cfg.training.warmup_ratio == 0.05              # stability fix
+    assert cfg.training.max_grad_norm == 1.0              # stability fix
+    assert cfg.training.weight_decay == 0.01              # stability fix
     assert cfg.training.report_to == "wandb"
 
 

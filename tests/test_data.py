@@ -70,11 +70,11 @@ def test_compute_sample_weights_temperature_softens_balancing():
         assert abs(sum(w) / len(w) - 1.0) < 1e-9
 
 
-def test_prepare_v2_data_uses_buckets_and_keeps_cjk(tmp_path):
+def test_prepare_data_uses_buckets_and_keeps_cjk(tmp_path):
     import pandas as pd
 
     from greyscope.config import DataConfig
-    from greyscope.data import prepare_v2_data
+    from greyscope.data import prepare_data
 
     # `model` is empty on the human row but a string on AI rows — the mixed null/string
     # column that broke CSV type-inference on Modal; the loader must not choke on it.
@@ -89,7 +89,7 @@ def test_prepare_v2_data_uses_buckets_and_keeps_cjk(tmp_path):
     for split in ("train", "val", "test"):
         pd.DataFrame(rows).to_csv(tmp_path / f"{split}.csv", index=False)
 
-    data = prepare_v2_data(DataConfig(n_buckets=4), splits_dir=str(tmp_path))
+    data = prepare_data(DataConfig(n_buckets=4), splits_dir=str(tmp_path))
 
     assert data.train["label"] == [0, 3, 2]  # precomputed per-language bucket used directly
     assert len(data.train) == 3  # CJK rows survive (no English word-count filter)
@@ -99,11 +99,11 @@ def test_prepare_v2_data_uses_buckets_and_keeps_cjk(tmp_path):
     assert len(data.class_weights) == 4
 
 
-def test_prepare_v2_data_raw_text_when_prompt_template_disabled(tmp_path):
+def test_prepare_data_raw_text_when_prompt_template_disabled(tmp_path):
     import pandas as pd
 
     from greyscope.config import DataConfig
-    from greyscope.data import prepare_v2_data
+    from greyscope.data import prepare_data
     from greyscope.preprocess import clean_text
 
     rows = [{"text_id": "en/1", "text": "An English sample.", "language": "en",
@@ -112,6 +112,6 @@ def test_prepare_v2_data_raw_text_when_prompt_template_disabled(tmp_path):
         pd.DataFrame(rows).to_csv(tmp_path / f"{split}.csv", index=False)
 
     # encoder arm: prompt = raw (cleaned) text, no instruction wrapper eating context budget
-    data = prepare_v2_data(DataConfig(n_buckets=4, use_prompt_template=False), splits_dir=str(tmp_path))
+    data = prepare_data(DataConfig(n_buckets=4, use_prompt_template=False), splits_dir=str(tmp_path))
     assert data.train["prompt"] == [clean_text("An English sample.")]
     assert "Answer:" not in data.train["prompt"][0]

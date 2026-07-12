@@ -1,4 +1,4 @@
-"""Tests for generation request-building (greyscope/v2/generate.py).
+"""Tests for generation request-building (greyscope/pipeline/generate.py).
 
 Pure functions only — no API calls. Guards the mainland-exclusion for zh-TW, the
 seeded (reproducible) config sampling, prompt assembly (humanizer injection,
@@ -8,8 +8,8 @@ edit-shippability licensing flag.
 
 import pytest
 
-from greyscope.v2 import generate as gen
-from greyscope.v2.openrouter import ChatResult
+from greyscope.pipeline import generate as gen
+from greyscope.pipeline.openrouter import ChatResult
 
 
 def _rec(language="zh-tw", source="ptt", register="creative",

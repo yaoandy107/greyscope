@@ -1,7 +1,7 @@
-"""Tests for the list-price cost model (greyscope/v2/pricing.py): per-model aggregation from
+"""Tests for the list-price cost model (greyscope/pipeline/pricing.py): per-model aggregation from
 recorded usage and the flex −50% halving. fetch_pricing (network) is not unit-tested."""
 
-from greyscope.v2.pricing import estimate_cost
+from greyscope.pipeline.pricing import estimate_cost
 
 
 def _row(model, ptok, ctok, served_tier=None):

@@ -1,11 +1,11 @@
-"""Tests for the PTT pure parsers (greyscope/v2/ptt.py).
+"""Tests for the PTT pure parsers (greyscope/pipeline/ptt.py).
 
 Fixture-driven — no network. Guards body extraction (metalines / pushes / signature
 stripped → human passage only) and the post-id date decode that powers the pre-2022
 contamination filter.
 """
 
-from greyscope.v2.ptt import parse_article, parse_index, post_unixtime, post_year
+from greyscope.pipeline.ptt import parse_article, parse_index, post_unixtime, post_year
 
 _ARTICLE_HTML = """
 <div id="main-content">

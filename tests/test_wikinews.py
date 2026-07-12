@@ -1,9 +1,9 @@
-"""Tests for the Japanese Wikinews scraper (greyscope/v2/wikinews.py): the pure parsers
+"""Tests for the Japanese Wikinews scraper (greyscope/pipeline/wikinews.py): the pure parsers
 (dateline + anti-confound body extraction) and `_render`'s skip-don't-crash handling of an
-unparseable revision (the live network paths stay un-mocked — same policy as test_v2_ptt)."""
+unparseable revision (the live network paths stay un-mocked — same policy as test_ptt)."""
 
-from greyscope.v2 import wikinews
-from greyscope.v2.wikinews import WikinewsError, _render, extract_body, parse_dateline
+from greyscope.pipeline import wikinews
+from greyscope.pipeline.wikinews import WikinewsError, _render, extract_body, parse_dateline
 
 
 def test_parse_dateline_reads_publication_date():

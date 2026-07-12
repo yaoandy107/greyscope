@@ -101,7 +101,7 @@ def test_invalid_mode(monkeypatch):
         _detect(monkeypatch, [1.0, 0.0, 0.0, 0.0], mode="nonsense")
 
 
-# --- CORN head (v2): K−1 conditional logits, cumulative-sigmoid decode ---
+# --- CORN head: K−1 conditional logits, cumulative-sigmoid decode ---
 
 CORN_CALIB = {
     "head_type": "corn", "n_buckets": 4,

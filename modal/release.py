@@ -45,21 +45,21 @@ cpu_infer_image = (
     volumes=_VOLUMES,
 )
 def export_and_validate(
-    ckpt: str = "production_v2",
+    ckpt: str = "production",
     val_subset: int = 1000,
     test_subset: int = 0,  # 0 = full test split, reproducing the trained ternary F1
-    head: str = "corn",  # must match the trained head (train_v2.yaml model.head)
+    head: str = "corn",  # must match the trained head (train.yaml model.head)
 ) -> None:
     """Merge the LoRA adapter into export_<run>/merged and assert the merge is faithful
     (guards against Unsloth #3206 corrupting seq-cls heads). Logic in greyscope/export.py."""
     import os
 
     use_app_packages(forbid_unsloth=False)  # export.py asserts the leak itself, post-import
-    os.chdir("/root/app")  # prepare_v2_data resolves data/v2/splits relatively
+    os.chdir("/root/app")  # prepare_data resolves data/v2/splits relatively
     from greyscope import export
 
     export.export_and_validate(ckpt, OUT_ROOT, val_subset=val_subset,
-                               test_subset=test_subset, data_source="v2", head=head,
+                               test_subset=test_subset, head=head,
                                on_saved=outputs_vol.commit)
     outputs_vol.commit()
 
@@ -81,7 +81,7 @@ def export_quantized(
     import os
 
     use_app_packages(forbid_unsloth=False)
-    os.chdir("/root/app")  # export_quantized's probe loads the v2 splits relatively
+    os.chdir("/root/app")  # export_quantized's probe loads the splits relatively
     from greyscope import export
 
     export.export_quantized(f"{OUT_ROOT}/{merged}", precision, head=head)

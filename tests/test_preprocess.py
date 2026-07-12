@@ -85,7 +85,7 @@ def test_score_to_bucket_middle_range():
     assert bucket_at_low <= bucket_at_high
 
 
-# --- v2 Unicode hardening (homoglyph / invisible-char defense) ---
+# --- Unicode hardening (homoglyph / invisible-char defense) ---
 # The homoglyph and zero-width inputs mirror RAID's adversarial attack axes.
 
 
@@ -127,6 +127,6 @@ def test_clean_text_applies_normalization_by_default():
 
 
 def test_clean_text_normalize_false_reproduces_editlens_path():
-    # The v1-baseline arm: the Cyrillic homoglyph survives; only lowercase/whitespace run.
+    # The EditLens-baseline arm: the Cyrillic homoglyph survives; only lowercase/whitespace run.
     assert clean_text("рay", normalize=False) == "рay"
     assert clean_text("рay", normalize=False) != clean_text("рay")

@@ -53,7 +53,6 @@ def export_and_validate(
     val_subset: int = 1000,
     test_subset: int = 0,  # 0 = full test split, reproducing the trained ternary F1
     device: str = "cuda",
-    data_source: str = "v1",  # "v2" validates against the trilingual splits, not EditLens
     head: str = "seqcls",  # "corn" decodes K-1 ordinal logits (must match training)
     on_saved=None,
 ) -> dict:
@@ -72,7 +71,7 @@ def export_and_validate(
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
     from greyscope.config import DataConfig
-    from greyscope.data import prepare_data, prepare_v2_data
+    from greyscope.data import prepare_data
     from greyscope.eval import (
         LABEL_TO_ID, calibrate_thresholds, evaluate,
         minmax_scale, orient_scores, predict_ternary,
@@ -117,9 +116,9 @@ def export_and_validate(
 
     dcfg = DataConfig(n_buckets=n_buckets, train_subset=100, val_subset=val_subset,
                       test_subset=(test_subset or None), seed=42)
-    print(f"[export] preparing {data_source} data (val_subset={val_subset}, "
+    print(f"[export] preparing validation data (val_subset={val_subset}, "
           f"test={'full' if not test_subset else test_subset})...")
-    data = prepare_v2_data(dcfg) if data_source == "v2" else prepare_data(dcfg)
+    data = prepare_data(dcfg)
     probe = data.val.select(range(min(64, len(data.val))))
 
     # `pre` is the pre-save reference computed on the un-merged adapter (proving the merge itself
@@ -241,7 +240,6 @@ def export_quantized(
     *,
     head: str = "seqcls",
     device: str = "cuda",
-    data_source: str = "v2",
     probe_size: int = 64,
 ) -> dict:
     """Quantize the merged bf16 export → sibling dir `<merged_dir>/../<precision>`,
@@ -256,7 +254,7 @@ def export_quantized(
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
     from greyscope.config import DataConfig
-    from greyscope.data import prepare_data, prepare_v2_data
+    from greyscope.data import prepare_data
     from greyscope.scoring import batch_logits
 
     n_buckets, max_length = 4, 2048
@@ -265,7 +263,7 @@ def export_quantized(
 
     tok = AutoTokenizer.from_pretrained(merged_dir)
     dcfg = DataConfig(n_buckets=n_buckets, train_subset=100, val_subset=probe_size, seed=42)
-    data = prepare_v2_data(dcfg) if data_source == "v2" else prepare_data(dcfg)
+    data = prepare_data(dcfg)
     probe = data.val.select(range(min(probe_size, len(data.val))))["prompt"]
 
     print(f"[quant] bf16 reference forward ({merged_dir})...")
@@ -311,7 +309,7 @@ def export_quantized(
     print(f"[quant] bf16-vs-{precision}  scalar_maxdiff={scalar_maxdiff:.4f}  "
           f"bucket_agree={bucket_agree:.4f}")
     # Coarse catastrophe gate on a 64-row probe — the real quality bar is the at-precision
-    # eval that follows (ood_eval_v2), not this. The broken default-int4-qparams recipe drifted
+    # eval that follows (ood_eval), not this. The broken default-int4-qparams recipe drifted
     # the score 0.68-0.86 on tail rows; int4+hqq sits ~0.26-0.43. 0.55 fails a broken recipe
     # (missing hqq / unexcluded GDN) without tripping on a merely-lossy-but-usable artifact.
     assert scalar_maxdiff <= 0.55, (

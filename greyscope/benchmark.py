@@ -64,14 +64,14 @@ def run_ood_eval(model, tok, *, in_domain: float, n_buckets: int = 4, max_length
     from datasets import load_dataset
 
     from greyscope.config import DataConfig
-    from greyscope.data import _prepare_split, prepare_data
+    from greyscope.data import _prepare_editlens_split, prepare_editlens_data
     from greyscope.eval import (
         LABEL_TO_ID, calibrate_thresholds, evaluate, minmax_scale, orient_scores, predict_ternary,
     )
     from greyscope.scoring import score_prompts
 
     cfg = DataConfig(n_buckets=n_buckets)
-    val = prepare_data(DataConfig(n_buckets=n_buckets, train_subset=100)).val  # full val
+    val = prepare_editlens_data(DataConfig(n_buckets=n_buckets, train_subset=100)).val  # full val
     vs = score_prompts(model, tok, val["prompt"], n_buckets, max_length=max_length)
     vlab = np.asarray([LABEL_TO_ID[t] for t in val["text_type"]])
     v_or, flipped = orient_scores(vs, vlab)
@@ -85,7 +85,7 @@ def run_ood_eval(model, tok, *, in_domain: float, n_buckets: int = 4, max_length
         "thresholds": {"h": float(h_thresh), "ai": float(ai_thresh), "flipped": bool(flipped)},
     }
     for name in OOD_SPLITS:
-        ds = _prepare_split(raw[name], cfg, None)
+        ds = _prepare_editlens_split(raw[name], cfg, None)
         sc = score_prompts(model, tok, ds["prompt"], n_buckets, max_length=max_length)
         labs = np.asarray([LABEL_TO_ID[t] for t in ds["text_type"]])
         preds = predict_ternary(minmax_scale(-sc if flipped else sc), h_thresh, ai_thresh)

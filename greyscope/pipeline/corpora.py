@@ -1,4 +1,4 @@
-"""Human-corpus loaders for the v2 trilingual build.
+"""Human-corpus loaders for the trilingual build.
 
 One function per source → normalized `HumanRecord`s (`text_type=human_written`) with a
 **stable `source_id`** for the rebuild-from-IDs release and `meta` for the
@@ -11,7 +11,7 @@ This is source-specific and lives in the loader; `preprocess.clean_text` is the 
 source-agnostic pass.
 
 The canonical record is a superset of EditLens's columns (text_id / text / text_type /
-model / source / source_id / source_text + cosine_score), plus the v2 fields `language`,
+model / source / source_id / source_text + cosine_score), plus the fields `language`,
 `register`, `markdown_mode`, `bucket`, and a `meta.text_register` for per-register FPR
 eval (PTT & EditLens are multi-register, so `source` alone no longer fixes register).
 """
@@ -330,8 +330,8 @@ def load_editlens_split(split: str) -> list[dict]:
 
 def load_editlens_ai(*, limit: int | None = None, split: str = "train") -> list[dict]:
     """EN backbone AI (free, cached): EditLens's own ai_generated + ai_edited rows. `load_editlens`
-    loads only humans, which leaves EN AI-starved vs v1 (trained on EditLens's full, AI-heavy set);
-    this restores it. `limit=None` takes all (~41k); an int caps to a balanced `limit//2` per class.
+    loads only humans, which leaves EN AI-starved vs the EditLens-trained baseline (its full,
+    AI-heavy set); this restores it. `limit=None` takes all (~41k); an int caps to `limit//2` per class.
     ai_generated → cosine 1.0 by class; ai_edited keeps EditLens's cosine (Linq-scale, which the EN cut
     matches). No split tag → assembled into train/val/test by source-doc."""
     table = _read_editlens_arrow(split)
@@ -502,7 +502,7 @@ def load_wikinews_ja(*, limit: int | None = None) -> list[HumanRecord]:
     journalistic source). Pre-2022 articles only; the 【…】 dateline is
     stripped at the scraper (anti-confound). `source_id = {pageid}@{revid}` for the
     rebuild. Lazy-imports the scraper so the EN/HF loaders stay free of httpx/bs4."""
-    from greyscope.v2 import wikinews
+    from greyscope.pipeline import wikinews
 
     out: list[HumanRecord] = []
     for art in wikinews.fetch_articles(limit=limit):
@@ -533,7 +533,7 @@ def load_ptt(
     """zh-TW casual + reviews + creative from PTT. One source, one
     license/ID story across boards; pre-2022 only. Lazy-imports the scraper so the
     EN/HF loaders stay free of httpx/bs4."""
-    from greyscope.v2 import ptt
+    from greyscope.pipeline import ptt
 
     boards = boards or PTT_BOARDS
     out: list[HumanRecord] = []
@@ -557,7 +557,7 @@ def load_twgov(*, limit: int | None = None) -> list[HumanRecord]:
     the native Taiwan-Traditional journalistic source). Pre-2022 only (the
     open-data feeds are rolling/current, so this scrapes the dated archive). `source_id` = the
     article id for the rebuild. Lazy-imports the scraper so the HF loaders stay httpx-free."""
-    from greyscope.v2 import twgov
+    from greyscope.pipeline import twgov
 
     out: list[HumanRecord] = []
     for art in twgov.fetch_news(limit=limit):

@@ -1,4 +1,4 @@
-"""Full v2 build driver: load → generate → gate → score → assemble.
+"""Full build driver: load → generate → gate → score → assemble.
 
 The asymmetric one-shot build — humans are the free FPR base (~12–15k/lang), the AI side is
 budget-capped (~1.5k EN / 6.3k ja / 6.3k zh-TW). Runs ALL sources and
@@ -6,11 +6,11 @@ wires `assemble`. Every response is cached → re-runs are free and resumable.
 
 SPENDS MONEY with --smoke/--full. Makes NO calls on import. Modes:
 
-    python scripts/v2_build.py                  # dry run: print the plan + human yields, no spend
-    python scripts/v2_build.py --smoke          # tiny NEW-source validation through gen→gate→score (~$0.20)
-    python scripts/v2_build.py --full           # the full build (~$50, the locked one-shot target)
-    python scripts/v2_build.py --topup-en N      # additively generate N NEW EN docs + append (SPENDS)
-    python scripts/v2_build.py --assemble-only  # re-gate/score/assemble from cached generations (no spend)
+    python scripts/build.py                  # dry run: print the plan + human yields, no spend
+    python scripts/build.py --smoke          # tiny NEW-source validation through gen→gate→score (~$0.20)
+    python scripts/build.py --full           # the full build (~$50, the locked one-shot target)
+    python scripts/build.py --topup-en N      # additively generate N NEW EN docs + append (SPENDS)
+    python scripts/build.py --assemble-only  # re-gate/score/assemble from cached generations (no spend)
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from greyscope.v2 import assemble, corpora, decontam, gates, generate, openrouter, paraphrase, pricing, score
+from greyscope.pipeline import assemble, corpora, decontam, gates, generate, openrouter, paraphrase, pricing, score
 
 REPORT_PATH = Path("data/v2/reports/build.md")
 
@@ -251,7 +251,7 @@ def _write_build_report(humans, kept, dropped, ood, contaminated, counts, backbo
     est = _list_price_estimate(chat_rows)
     crosscheck = f" · list-price cross-check ${est:.2f}" if est is not None else ""
 
-    out = ["# Greyscope v2 — build report", "",
+    out = ["# Greyscope — build report", "",
            f"Generated {datetime.now(timezone.utc):%Y-%m-%d %H:%M UTC}", "",
            f"- humans: {len(humans)} · kept AI: {len(kept)} · dropped: {len(dropped)} "
            f"· decontam-dropped: {len(contaminated)} · OOD-ingest: {len(ood)}",
@@ -378,7 +378,7 @@ def _dry_run(langs: list[str]) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Greyscope v2 build driver (SPENDS MONEY with --smoke/--full).")
+    parser = argparse.ArgumentParser(description="Greyscope build driver (SPENDS MONEY with --smoke/--full).")
     parser.add_argument("--smoke", action="store_true", help="tiny new-source validation (~$0.20)")
     parser.add_argument("--full", action="store_true", help="the full build (~$50)")
     parser.add_argument("--assemble-only", action="store_true",

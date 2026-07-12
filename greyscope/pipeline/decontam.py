@@ -212,7 +212,7 @@ def extract_raid_humans(split: str, *, limit: int | None = None, refresh: bool =
 
 
 def _editlens_test_humans() -> list[str]:
-    from greyscope.v2 import corpora
+    from greyscope.pipeline import corpora
 
     out: list[str] = []
     for split in _EDITLENS_TEST_SPLITS:
@@ -224,7 +224,7 @@ def _beemo_humans() -> list[str]:
     """Beemo `human_output` texts for the reference — Beemo is an EVAL benchmark (edited MGT), so a
     train human overlapping it would leak. Used only as an n-gram exclusion hash, never redistributed
     (Beemo's human layer is CC-BY-NC). Best-effort: a load blip leaves the RAID+EditLens reference intact."""
-    from greyscope.v2.corpora import _iter_hf
+    from greyscope.pipeline.corpora import _iter_hf
 
     try:
         return [t for ex in _iter_hf(*_BEEMO, "train")
