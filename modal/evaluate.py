@@ -134,9 +134,9 @@ def ood_eval_v2(
     secrets=[hf_secret],
     volumes=_VOLUMES,
 )
-def attack_eval_v2(ckpt: str, head: str = "corn", val_subset: int = 2000,
-                   test_subset: int = 3000, limit: int = 0,
-                   split: str = "attack_paraphrase") -> None:
+def paraphrase_attack_eval(ckpt: str, head: str = "corn", val_subset: int = 2000,
+                           test_subset: int = 3000, limit: int = 0,
+                           split: str = "attack_paraphrase") -> None:
     """Eval-only: re-score an ablation LoRA checkpoint (un-merged) on ONE split — the
     paraphrase-attack robustness slice — with thresholds calibrated on v2 val. Reuses the
     export loader (base + PeftModel, no merge) so a finished ablation arm is judged on a
@@ -161,9 +161,8 @@ def attack_eval_v2(ckpt: str, head: str = "corn", val_subset: int = 2000,
     from greyscope.eval import StandaloneScorer, eval_ood_splits, run_ternary_eval
     from greyscope.export import _resolve_best_ckpt
 
-    # Fail fast BEFORE the model load on a stale mount: the attack slice MUST carry human
-    # negatives or detection AUROC/TPR@FPR are undefined (single-class). Catches add_local_dir
-    # serving an old AI-only slice for ~$0 instead of after a full GPU load.
+    # Guard BEFORE the model load: the attack slice MUST carry human negatives or detection
+    # AUROC/TPR@FPR are undefined (single-class) — fail for ~$0, not after a full GPU load.
     import csv as _csv
     with open(f"data/v2/splits/{split}.csv", encoding="utf-8") as fh:
         _types = [row["text_type"] for row in _csv.DictReader(fh)]
