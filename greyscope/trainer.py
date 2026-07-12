@@ -19,6 +19,19 @@ def _detection_auroc(gold: np.ndarray, ai_prob: np.ndarray) -> float:
     return float(roc_auc_score(y, ai_prob))
 
 
+def _tpr_at_fpr(gold: np.ndarray, ai_prob: np.ndarray, fpr: float) -> float:
+    """TPR at a fixed human false-positive rate: threshold = the (1−fpr) quantile of P(y>0)
+    on human negatives, then the fraction of any-AI scoring at or above it. This is the SHIP
+    metric — AUROC can saturate while TPR@low-FPR still climbs — logged per-checkpoint so the
+    curve is visible; selection stays on the lower-variance AUROC. 0.0 on a single-class slice."""
+    y = (gold > 0).astype(int)
+    neg, pos = ai_prob[y == 0], ai_prob[y == 1]
+    if neg.size == 0 or pos.size == 0:
+        return 0.0
+    thresh = np.quantile(neg, 1.0 - fpr)
+    return float((pos >= thresh).mean())
+
+
 def make_compute_metrics(n_buckets: int) -> Callable[[Any], dict[str, float]]:
     """compute_metrics for the sequence-classification head.
 
@@ -44,7 +57,10 @@ def make_compute_metrics(n_buckets: int) -> Callable[[Any], dict[str, float]]:
         acc = float((preds == gold).mean())
 
         ai_prob = 1.0 - softmax(logits, axis=1)[:, 0]  # P(bucket > 0)
-        out = {"macro_f1": float(macro), "accuracy": acc, "detection_auroc": _detection_auroc(gold, ai_prob)}
+        out = {"macro_f1": float(macro), "accuracy": acc,
+               "detection_auroc": _detection_auroc(gold, ai_prob),
+               "tpr_fpr1": _tpr_at_fpr(gold, ai_prob, 0.01),
+               "tpr_fpr5": _tpr_at_fpr(gold, ai_prob, 0.05)}
         for i, (f, r) in enumerate(zip(per_class, per_recall)):
             out[f"f1_bucket_{i}"] = float(f)
             out[f"recall_bucket_{i}"] = float(r)
@@ -75,7 +91,10 @@ def make_corn_compute_metrics(n_buckets: int) -> Callable[[Any], dict[str, float
         acc = float((preds == gold).mean())
 
         ai_prob = corn_cumulative_probs(logits)[:, 0]  # P(y > 0), the CORN detection head
-        out = {"macro_f1": float(macro), "accuracy": acc, "detection_auroc": _detection_auroc(gold, ai_prob)}
+        out = {"macro_f1": float(macro), "accuracy": acc,
+               "detection_auroc": _detection_auroc(gold, ai_prob),
+               "tpr_fpr1": _tpr_at_fpr(gold, ai_prob, 0.01),
+               "tpr_fpr5": _tpr_at_fpr(gold, ai_prob, 0.05)}
         for i, (f, r) in enumerate(zip(per_class, per_recall)):
             out[f"f1_bucket_{i}"] = float(f)
             out[f"recall_bucket_{i}"] = float(r)
