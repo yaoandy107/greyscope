@@ -23,7 +23,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from greyscope.v2 import assemble, corpora, decontam, gates, generate, openrouter, pricing, score
+from greyscope.v2 import assemble, corpora, decontam, gates, generate, openrouter, paraphrase, pricing, score
 
 REPORT_PATH = Path("data/v2/reports/build.md")
 
@@ -290,6 +290,52 @@ def _write_build_report(humans, kept, dropped, ood, contaminated, counts, backbo
     REPORT_PATH.write_text("\n".join(out) + "\n", encoding="utf-8")
 
 
+# --- paraphrase augmentation ---------------------------------------------------
+# Train aug (AUG_MODEL) and the attack-eval slices (ATTACK_MODEL, held-out family):
+# dev slice from val (ablation judging), test slice from test (final report only).
+PARA_TRAIN_PER_LANG = 1500
+PARA_ATTACK_PER_LANG = 300
+
+
+# (source split, AI rows, paraphraser pool, output, human-negative split | None for train aug)
+def _paraphrase_plan() -> list[tuple[list[dict], list[dict], Path, str | None]]:
+    return [
+        (paraphrase.select_ai_rows(paraphrase.read_split("train"), PARA_TRAIN_PER_LANG),
+         paraphrase.AUG_MODELS, assemble.SPLITS_DIR / "train_aug_paraphrase.csv", None),
+        (paraphrase.select_ai_rows(paraphrase.read_split("val"), PARA_ATTACK_PER_LANG),
+         paraphrase.ATTACK_MODELS, assemble.SPLITS_DIR / "attack_paraphrase.csv", "val"),
+        (paraphrase.select_ai_rows(paraphrase.read_split("test"), PARA_ATTACK_PER_LANG),
+         paraphrase.ATTACK_MODELS, assemble.SPLITS_DIR / "attack_paraphrase_test.csv", "test"),
+    ]
+
+
+def run_paraphrase(estimate_only: bool) -> None:
+    plan = _paraphrase_plan()
+    prices = pricing.fetch_pricing()
+    total = 0.0
+    for rows, models, out, _ in plan:
+        est = paraphrase.estimate_cost(rows, models, prices)
+        total += est["cost"]
+        slugs = "+".join(m["slug"].split("/")[1] for m in models)
+        print(f"  {out.name}: {est['rows']} rows via {slugs} "
+              f"(~{est['tokens_in'] // 1000}k in / {est['tokens_out'] // 1000}k out) ≈ ${est['cost']:.2f} list")
+    print(f"  TOTAL ≈ ${total:.2f} list (actual usually ~0.85× list; flex already halved)")
+    if estimate_only:
+        return
+    sources = paraphrase.human_sources("train", "val", "test")
+    actual = 0.0
+    for rows, models, out, human_split in plan:
+        kept, cost = paraphrase.run(rows, models, out)
+        actual += cost
+        kept = paraphrase.rescore_edited(kept, sources)
+        if human_split:  # attack slices need human negatives for a defined detection metric
+            kept = kept + paraphrase.sample_humans(human_split, PARA_ATTACK_PER_LANG)
+        paraphrase.write_rows(kept, out)
+        buckets = Counter(r["bucket"] for r in kept)
+        print(f"  {out.name}: {len(kept)} rows, buckets {dict(sorted(buckets.items()))}")
+    print(f"paraphrase stage actual cost: ${actual:.2f} (+ embeddings, see cache)")
+
+
 # --- new-source smoke (risk #2) ----------------------------------------------
 def run_smoke(per_source: int = 3) -> None:
     humans: list[dict] = []
@@ -339,6 +385,10 @@ def main() -> None:
                         help="re-gate/score/assemble from cached generations (no API, no spend)")
     parser.add_argument("--topup-en", type=int, default=0, metavar="N",
                         help="additively generate N NEW EN docs on the current registry + append (SPENDS)")
+    parser.add_argument("--paraphrase", action="store_true",
+                        help="generate the paraphrase train-aug + attack-eval slices (SPENDS ~$5-8)")
+    parser.add_argument("--paraphrase-estimate", action="store_true",
+                        help="print the grounded list-price estimate for --paraphrase (no spend)")
     parser.add_argument("--langs", nargs="+", default=["en", "ja", "zh-tw"])
     args = parser.parse_args()
 
@@ -348,6 +398,8 @@ def main() -> None:
         run_build(args.langs)
     elif args.topup_en:
         run_topup("en", args.topup_en)
+    elif args.paraphrase or args.paraphrase_estimate:
+        run_paraphrase(estimate_only=not args.paraphrase)
     elif args.assemble_only:
         run_build(args.langs, assemble_only=True)
     else:

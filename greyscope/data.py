@@ -128,7 +128,10 @@ def prepare_v2_data(cfg, splits_dir: str = V2_SPLITS_DIR) -> PreparedData:
     """
     from datasets import load_dataset
 
-    files = {s: f"{splits_dir}/{s}.csv" for s in ("train", "val", "test")}
+    files: dict = {s: f"{splits_dir}/{s}.csv" for s in ("train", "val", "test")}
+    extra = list(getattr(cfg, "train_extra_files", ()) or ())
+    if extra:  # train-only augmentation files (e.g. the paraphrase-invariance slice)
+        files["train"] = [files["train"], *extra]
     # Load only the columns training needs. Other columns (e.g. `model`) are empty on human
     # rows but strings on AI rows, so CSV type-inference picks `double` then fails to cast
     # "openai/..." — restricting columns sidesteps the mixed null/string inference entirely.

@@ -23,3 +23,4 @@ class DataConfig:
     sample_weight_temperature: float = 0.5  # τ for v2 joint language+bucket sampler (0=natural,
     #                                         1=full balance); design τ≈0.3–0.5 (smoothed inverse)
     use_prompt_template: bool = True  # False = raw text (encoder arm; decoders keep the prompt)
+    train_extra_files: tuple[str, ...] = ()  # extra train-only CSVs (e.g. the paraphrase aug)

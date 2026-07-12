@@ -199,7 +199,8 @@ def _train(cfg) -> None:
     # selecting on in-domain). Same val-calibrated thresholds, applied to the held-out splits.
     if getattr(cfg.data, "source", None) == "v2":
         ood = eval_ood_splits(
-            trainer, cfg.data.splits_dir, ["test_llama", "test_enron", "ood_generator"],
+            trainer, cfg.data.splits_dir,
+            ["test_llama", "test_enron", "ood_generator", "attack_paraphrase"],
             cfg.data.n_buckets, head=head, flip=ternary["score_flipped"],
             h_thresh=ternary["h_thresh"], ai_thresh=ternary["ai_thresh"], limit=1200,
             use_prompt_template=getattr(cfg.data, "use_prompt_template", True))
@@ -207,8 +208,8 @@ def _train(cfg) -> None:
         for name, r in ood.items():
             rd = r["detection"]
             pl = " ".join(f"{k}={v['macro_f1']:.3f}(n={v['n']})" for k, v in r["per_language"].items())
-            log.info("[OOD %-13s] macro-F1=%.4f · DETECTION AUROC=%.4f TPR@FPR1%%=%s TPR@FPR5%%=%s (n=%d)  %s",
-                     name, r["macro_f1"], rd["auroc"], _fmt(rd["tpr@fpr1"]), _fmt(rd["tpr@fpr5"]), r["n"], pl)
+            log.info("[OOD %-13s] macro-F1=%.4f · DETECTION AUROC=%s TPR@FPR1%%=%s TPR@FPR5%%=%s (n=%d)  %s",
+                     name, r["macro_f1"], _fmt(rd["auroc"]), _fmt(rd["tpr@fpr1"]), _fmt(rd["tpr@fpr5"]), r["n"], pl)
         with open(os.path.join(cfg.training.output_dir, "ood_metrics.json"), "w") as fh:
             json.dump(ood, fh, indent=2)
 

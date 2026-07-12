@@ -90,6 +90,8 @@ def ood_eval_v2(
 
     use_app_packages()
     os.chdir("/root/app")  # prepare_v2_data / eval_ood_splits resolve data/v2/splits relatively
+    os.environ["HF_DATASETS_CACHE"] = "/tmp/hfds_cache"  # re-parse changed split CSVs (the persistent
+    #                                    hf-cache volume otherwise serves a stale arrow for the same path)
     from greyscope.config import DataConfig
     from greyscope.data import prepare_v2_data
     from greyscope.eval import StandaloneScorer, eval_ood_splits, run_ternary_eval
@@ -109,7 +111,8 @@ def ood_eval_v2(
         print(f"[ood-v2]   [{lang}] macro-F1={pl['macro_f1']:.4f} h={pl['f1_human']:.3f} (n={pl['n']})")
 
     ood = eval_ood_splits(
-        scorer, "data/v2/splits", ["test_llama", "test_enron", "ood_generator"], 4,
+        scorer, "data/v2/splits",
+        ["test_llama", "test_enron", "ood_generator", "attack_paraphrase_test"], 4,
         head=head, flip=ternary["score_flipped"],
         h_thresh=ternary["h_thresh"], ai_thresh=ternary["ai_thresh"], limit=limit)
     for name, r in ood.items():
@@ -123,6 +126,91 @@ def ood_eval_v2(
                    "val_subset": val_subset, "test_subset": test_subset, "ood_limit": limit}, fh, indent=2)
     outputs_vol.commit()
     print(f"[ood-v2] wrote {out_path}")
+
+
+@app.function(
+    gpu="A100-40GB",
+    timeout=60 * 60,
+    secrets=[hf_secret],
+    volumes=_VOLUMES,
+)
+def attack_eval_v2(ckpt: str, head: str = "corn", val_subset: int = 2000,
+                   test_subset: int = 3000, limit: int = 0,
+                   split: str = "attack_paraphrase") -> None:
+    """Eval-only: re-score an ablation LoRA checkpoint (un-merged) on ONE split — the
+    paraphrase-attack robustness slice — with thresholds calibrated on v2 val. Reuses the
+    export loader (base + PeftModel, no merge) so a finished ablation arm is judged on a
+    fixed slice without retraining. Writes attack_metrics.json next to the checkpoint."""
+    import json
+    import os
+
+    import torch
+    import torch.nn as nn
+    from peft import PeftModel
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+    # The parsed-CSV arrow is cached in the persistent hf-cache volume keyed by path; a fixed
+    # slice at the same path would otherwise serve the stale arrow. Point datasets at a fresh
+    # per-run cache so the CSV is re-parsed.
+    os.environ["HF_DATASETS_CACHE"] = "/tmp/hfds_cache"
+
+    use_app_packages()
+    os.chdir("/root/app")
+    from greyscope.config import DataConfig
+    from greyscope.data import prepare_v2_data
+    from greyscope.eval import StandaloneScorer, eval_ood_splits, run_ternary_eval
+    from greyscope.export import _resolve_best_ckpt
+
+    # Fail fast BEFORE the model load on a stale mount: the attack slice MUST carry human
+    # negatives or detection AUROC/TPR@FPR are undefined (single-class). Catches add_local_dir
+    # serving an old AI-only slice for ~$0 instead of after a full GPU load.
+    import csv as _csv
+    with open(f"data/v2/splits/{split}.csv", encoding="utf-8") as fh:
+        _types = [row["text_type"] for row in _csv.DictReader(fh)]
+    _n_human = sum(t == "human_written" for t in _types)
+    print(f"[attack] slice {split}: {len(_types)} rows, {_n_human} human / {len(_types) - _n_human} AI", flush=True)
+    assert _n_human > 0, f"{split} has no human rows — stale mount? detection metrics need both classes"
+
+    n_out = (4 - 1) if head == "corn" else 4
+    ckpt_dir = _resolve_best_ckpt(f"{OUT_ROOT}/{ckpt}")
+    with open(f"{ckpt_dir}/adapter_config.json") as fh:
+        base_name = json.load(fh)["base_model_name_or_path"]
+    print(f"[attack] ckpt={ckpt_dir} base={base_name} head={head}", flush=True)
+
+    tok = AutoTokenizer.from_pretrained(base_name)
+    if tok.pad_token_id is None:
+        tok.pad_token = tok.eos_token
+    tok.padding_side = "right"
+    base = AutoModelForSequenceClassification.from_pretrained(base_name, num_labels=n_out, dtype=torch.bfloat16)
+    base.config.pad_token_id = tok.pad_token_id
+    if base.score.out_features != n_out:  # VLM-composite config ignores num_labels=
+        base.score = nn.Linear(base.score.in_features, n_out, bias=base.score.bias is not None).to(torch.bfloat16)
+    base.config.head_type, base.config.n_buckets = head, 4
+    model = PeftModel.from_pretrained(base, ckpt_dir).to("cuda").eval()
+    scorer = StandaloneScorer(model, tok, batch_size=4)
+
+    dcfg = DataConfig(n_buckets=4, train_subset=100, seed=42,
+                      val_subset=val_subset, test_subset=test_subset)
+    data = prepare_v2_data(dcfg)
+    ternary = run_ternary_eval(scorer, data.val, data.test, 4, head=head)
+    ood = eval_ood_splits(scorer, "data/v2/splits", [split], 4, head=head,
+                          flip=ternary["score_flipped"], h_thresh=ternary["h_thresh"],
+                          ai_thresh=ternary["ai_thresh"], limit=(limit or None))
+    r = ood[split]
+    rd = r["detection"]
+
+    def _f(x):
+        return f"{x:.4f}" if isinstance(x, float) else "n/a"
+    print(f"[attack] {split}: macro-F1={r['macro_f1']:.4f} AUROC={_f(rd['auroc'])} "
+          f"TPR@1%={_f(rd['tpr@fpr1'])} TPR@5%={_f(rd['tpr@fpr5'])} (n={r['n']})", flush=True)
+    for lang, pl in r["per_language"].items():
+        pd_ = pl["detection"]
+        print(f"[attack]   [{lang}] AUROC={_f(pd_['auroc'])} TPR@5%={_f(pd_['tpr@fpr5'])} (n={pl['n']})", flush=True)
+    out_path = f"{OUT_ROOT}/{ckpt.rstrip('/')}/attack_metrics.json"
+    with open(out_path, "w") as fh:
+        json.dump({"ckpt": ckpt, "split": split, "result": ood}, fh, indent=2)
+    outputs_vol.commit()
+    print(f"[attack] wrote {out_path}", flush=True)
 
 
 @app.function(

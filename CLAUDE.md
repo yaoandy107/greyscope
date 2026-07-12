@@ -32,6 +32,12 @@ RAID + EditLens-test + Beemo **before** generation.
 `--topup-en N` additively generates N NEW EN docs on the current registry and appends (never overwrites),
 for lifting the graded middle by edit volume without a full rebuild.
 
+`paraphrase` (driver `--paraphrase`) is a post-assembly robustness stage: paraphrase existing AI rows
+(strong paraphrasers), keep the original label for fully-AI and re-score paraphrased edits vs the human
+source. Writes `train_aug_paraphrase.csv` (train-only aug, wired into training via `data.train_extra_files`)
+and `attack_paraphrase{,_test}.csv` (held-out-paraphraser eval slices with human negatives). Ablation
+2026-07-12 adopted it: attack TPR@1% +13pt, graded-middle recall lifted, in-domain floor flat.
+
 ## Conventions (non-obvious)
 
 - **Cache everything → resumable.** Every API response is cached by content hash (`data/v2/cache/`);
@@ -54,7 +60,17 @@ Design spec, implementation plan, and the running experiment log live in `.agent
 ```bash
 pytest -q          # tests
 ruff check .       # lint
-python scripts/v2_build.py                  # dry run (no spend)
-python scripts/v2_build.py --assemble-only  # rebuild splits from cache (no spend)
-python scripts/v2_build.py --topup-en N     # generate N new EN docs + append (SPENDS)
+python scripts/v2_build.py                    # dry run (no spend)
+python scripts/v2_build.py --assemble-only    # rebuild splits from cache (no spend)
+python scripts/v2_build.py --topup-en N       # generate N new EN docs + append (SPENDS)
+python scripts/v2_build.py --paraphrase-estimate  # grounded cost of the paraphrase stage (no spend)
+python scripts/v2_build.py --paraphrase       # build paraphrase aug + attack slices (SPENDS)
 ```
+
+## v2 training (`configs/train_v2.yaml`, `modal/train.py::production_v2`)
+
+Qwen3.5-4B LoRA + CORN 4-bucket ordinal head + MELD hard-negative ranking loss, joint
+language×bucket sampler (τ=0.5), paraphrase aug folded in (`data.train_extra_files`). Checkpoint
+selection on `eval_detection_auroc` (not 4-bucket macro-F1 — the thin middle is noisy). Post-train
+OOD scoreboard = `test_llama`/`test_enron`/`ood_generator`/`attack_paraphrase`. Ship bf16 LoRA →
+int4-HQQ (`greyscope/export.py`). Not trained yet — `production_v2` is the single committed run.

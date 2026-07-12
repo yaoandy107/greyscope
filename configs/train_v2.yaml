@@ -35,6 +35,8 @@ data:
   label_field: cosine_score
   sample_weight_temperature: 0.5  # τ for the joint language+bucket sampler: 1.0=full inverse (memorizes
                                   # thin ja/zh-TW), 0=natural mix, 0.5=sqrt.
+  train_extra_files:              # paraphrase-invariance aug (ablation 2026-07-12: attack TPR@1% +13pt,
+    - data/v2/splits/train_aug_paraphrase.csv  # graded-middle recall_bucket_2 0.08→0.40, floor ±0.007)
 
 training:
   output_dir: outputs/greyscope-v2
