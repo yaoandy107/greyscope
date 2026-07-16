@@ -14,8 +14,9 @@ under `data/v2/`.
   + Unicode hardening + `score_to_bucket`). Training/release run on Modal (`modal/`, `configs/train.yaml`).
 - `greyscope/pipeline/` — the trilingual dataset build (EN / ja / zh-TW), an EditLens-recipe clone; all
   three languages built the same way (registry mirror+edit generation). `data/v2/splits/` is complete
-  (EN topped up 2026-07-11 to fill the graded middle → 7.6%). **EditLens is EVAL-only** (the
-  `test_llama`/`test_enron` slices) so the model ships Apache-2.0 — EN trains on permissive sources only.
+  (graded middle filled by EN top-ups 2026-07-11/07-15 + non-native-EN reddit-l2 humans). **EditLens is
+  EVAL-only** (its held-out OOD `test_llama`/`test_enron` slices — held out for EditLens too, not train
+  domains) so the model ships Apache-2.0 — EN trains on non-EditLens sources only.
 - `tests/` — pytest. `data/` and `.agents/memory/` are gitignored.
 
 ## Dataset pipeline (`greyscope/pipeline/`)
@@ -23,16 +24,17 @@ under `data/v2/`.
 Stages-as-files, wired by the build driver `scripts/build.py` (`--smoke` cheap-validates new
 sources; `--full` is the real run):
 
-`corpora` (human loaders + source-artifact normalization; EN humans are permissive — fineweb / arxiv /
-gutenberg / wikinews / amazon / stackexchange) → `generate` (1 mirror + 1 edit per doc; `GENERATORS`
-registry-as-data; reasoning payloads per model) → `gates` (quality + within-type near-dedup) → `score`
+`corpora` (human loaders + source-artifact normalization; EN humans — fineweb / arxiv / gutenberg /
+wikinews / amazon / stackexchange / reddit-l2 non-native-EN, fetched via Arctic Shift) → `generate`
+(1 mirror + 2 edits per doc; `GENERATORS` registry-as-data; reasoning payloads per model) → `gates` (quality + within-type near-dedup) → `score`
 (Qwen3-Embedding-8B cosine = edit magnitude) → `assemble` (bucket via per-language `BUCKET_CUTS`,
 split by source-doc, exact-text dedup, write CSV + prompt manifest). `decontam` scrubs EN humans vs
 RAID + EditLens-test + Beemo **before** generation.
 `openrouter` is the cached chat+embed client; `pricing` is the list-price cross-check. Scrapers: `ptt`,
 `wikinews`, `twgov`. `--assemble-only` re-runs gate→score→assemble from cached generations (no spend);
-`--topup-en N` additively generates N NEW EN docs on the current registry and appends (never overwrites),
-for lifting the graded middle by edit volume without a full rebuild.
+`--topup-en N` additively generates N NEW EN docs on the current registry and appends (never overwrites);
+`--topup-edits K` adds K more edits/doc to already-generated docs (unused prompts, same split). Both lift
+the graded middle by edit volume without a full rebuild.
 
 `paraphrase` (driver `--paraphrase`) is a post-assembly robustness stage: paraphrase existing AI rows
 (strong paraphrasers), keep the original label for fully-AI and re-score paraphrased edits vs the human
@@ -65,6 +67,7 @@ ruff check .       # lint
 python scripts/build.py                    # dry run (no spend)
 python scripts/build.py --assemble-only    # rebuild splits from cache (no spend)
 python scripts/build.py --topup-en N       # generate N new EN docs + append (SPENDS)
+python scripts/build.py --topup-edits K    # add K more edits/doc to existing docs (SPENDS)
 python scripts/build.py --paraphrase-estimate  # grounded cost of the paraphrase stage (no spend)
 python scripts/build.py --paraphrase       # build paraphrase aug + attack slices (SPENDS)
 ```
@@ -76,4 +79,9 @@ language×bucket sampler (τ=0.5), paraphrase aug folded in (`data.train_extra_f
 selection on `eval_detection_auroc` (not 4-bucket macro-F1 — the thin middle is noisy). Post-train
 OOD scoreboard = `test_llama`/`test_enron`/`ood_generator`/`attack_paraphrase`. Ship bf16 LoRA →
 int4-HQQ (`greyscope/export.py`). Modal ladder: `smoke` (0.8B/64 rows, plumbing) → `ablation`
-(12k, one knob) → `production` (the full run). Not trained yet — `production` is the single committed run.
+(12k, one knob) → `production` (the full run). **Trained 2026-07-15 (`production-r2`, `boundary_margin=0.003`):
+ternary macro-F1 0.877 / ai_edited F1 0.823 / detection AUROC 0.986; ties editlens-Llama-3.2-3B on detection
++ in-domain graded ternary (0.895) and on independent RAID-10k (0.995). Shipped artifact complete at
+`export_production-r2/`: `merged/` (bf16 + `calibration.json`) + `int4/` (HQQ). Trilingual calibration binds
+the ≤1% FPR binary threshold on the non-native-EN subgroup (0.837; per-lang en/ja/zh-tw 0.055/0.321/0.255);
+int4 tracks bf16 at 98.4% bucket agreement. HF push still pending.**

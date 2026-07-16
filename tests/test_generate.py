@@ -256,3 +256,44 @@ def test_base_row_strips_header_into_meta():
     row = gen.mirror_row(rec, req, result)
     assert row["text"] == "The content body."
     assert row["meta"]["stripped_header"] == "Sure, here is the text:"
+
+
+def test_build_extra_edit_requests_unused_prompts_same_split():
+    rec = _rec()
+    # a cached doc with 2 edits from the train split; one un-generated doc
+    base = gen.build_requests([rec])
+    cached = []
+    for req in base:
+        if req.kind != "edit":
+            continue
+        cached.append({"source": rec["source"], "source_id": rec["source_id"],
+                       "text_type": "ai_edited",
+                       "meta": {"edit_prompt_id": req.edit_prompt["id"],
+                                "split_tag": req.edit_prompt["split"]}})
+    other = _rec(source_id="marvel/M.9.Z.9")
+
+    reqs = gen.build_extra_edit_requests([rec, other], cached, extra_per_doc=2)
+
+    assert len(reqs) == 2  # only the cached doc gets extras; the un-generated doc is skipped
+    assert all(r.kind == "edit" for r in reqs)
+    used = {c["meta"]["edit_prompt_id"] for c in cached}
+    split = cached[0]["meta"]["split_tag"]
+    for r in reqs:
+        assert r.edit_prompt["id"] not in used  # never re-issues a cached draw
+        assert r.edit_prompt["split"] == split  # split discipline holds
+    assert len({r.edit_prompt["id"] for r in reqs}) == 2  # distinct extras
+    # deterministic: a re-run rebuilds the identical requests (cache-hit on retry)
+    again = gen.build_extra_edit_requests([rec, other], cached, extra_per_doc=2)
+    assert [r.edit_prompt["id"] for r in again] == [r.edit_prompt["id"] for r in reqs]
+
+
+def test_casual_prompt_pool_expansion_counts():
+    # EditLens-register expansion: 9 casual per existing category + the improve category.
+    for lang in ("en", "ja", "zh-tw"):
+        prompts = gen.load_edit_prompts(lang)
+        assert len(prompts) == 171
+        assert len({p["id"] for p in prompts}) == 171
+        by_split = {s: sum(1 for p in prompts if p["split"] == s) for s in ("train", "val", "test")}
+        assert by_split == {"train": 133, "val": 19, "test": 19}
+        cats = {p["category"] for p in prompts}
+        assert "improve" in cats and len(cats) == 10

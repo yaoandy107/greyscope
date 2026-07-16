@@ -325,3 +325,366 @@
   category: rewrite
   split: test
   prompt: "Recast the text below in an entirely new style and structure while preserving its topic and key facts."
+# Casual user-voice expansion (EditLens-register): real people asking a chatbot to fix their text —
+# contractions, informal phrasing, occasional context. Same per-category scope as above; per category
+# 10–16 train, 17 val, 18 test. New `improve` category (general "make it better") 1–7 train, 8 val, 9 test.
+- id: en-copyedit-10
+  category: copyedit
+  split: train
+  prompt: "Can you fix the typos and grammar in this? Don't change anything else, just the mistakes."
+- id: en-copyedit-11
+  category: copyedit
+  split: train
+  prompt: "hey can you check my spelling and punctuation here? leave the words how they are"
+- id: en-copyedit-12
+  category: copyedit
+  split: train
+  prompt: "Make my grammar sound better but keep it exactly as I wrote it otherwise, just clean up the errors."
+- id: en-copyedit-13
+  category: copyedit
+  split: train
+  prompt: "I always mess up commas and apostrophes — can you go through this and fix just those?"
+- id: en-copyedit-14
+  category: copyedit
+  split: train
+  prompt: "Proofread this for me? Just the spelling and grammar slips, no rewording please."
+- id: en-copyedit-15
+  category: copyedit
+  split: train
+  prompt: "Could you catch any typos or grammar goofs in my email below? Keep my wording the same."
+- id: en-copyedit-16
+  category: copyedit
+  split: train
+  prompt: "fix the errors in this real quick, only the actual mistakes though, don't touch how it's phrased"
+- id: en-copyedit-17
+  category: copyedit
+  split: val
+  prompt: "Can you clean up the grammar and punctuation on my post? Don't reword it, just fix what's wrong."
+- id: en-copyedit-18
+  category: copyedit
+  split: test
+  prompt: "just fix the spelling and grammar mistakes for me, leave everything else alone"
+- id: en-polish-10
+  category: polish
+  split: train
+  prompt: "Can you make this read a bit smoother? Nothing major, just tidy up the clunky parts."
+- id: en-polish-11
+  category: polish
+  split: train
+  prompt: "This is mostly fine but a couple sentences feel awkward — can you smooth them out without rewriting it?"
+- id: en-polish-12
+  category: polish
+  split: train
+  prompt: "give my paragraph a light polish so it flows better, but keep it sounding like me"
+- id: en-polish-13
+  category: polish
+  split: train
+  prompt: "Could you clean this up just a little? I like it, it just needs a bit of a buff, don't overhaul it."
+- id: en-polish-14
+  category: polish
+  split: train
+  prompt: "Make my writing flow nicer please, small tweaks only, keep most of my words."
+- id: en-polish-15
+  category: polish
+  split: train
+  prompt: "can you touch this up so it reads better? light edits, I don't want it fully rewritten"
+- id: en-polish-16
+  category: polish
+  split: train
+  prompt: "My intro feels a bit rough — can you smooth the wording a touch while keeping the same vibe?"
+- id: en-polish-17
+  category: polish
+  split: val
+  prompt: "Just a gentle polish on this, please — fix the awkward bits but keep it close to what I wrote."
+- id: en-polish-18
+  category: polish
+  split: test
+  prompt: "make this read a little nicer, nothing drastic, just smooth out the rough spots"
+- id: en-tone-10
+  category: tone
+  split: train
+  prompt: "Can you make my email sound more professional? Same info, just less casual."
+- id: en-tone-11
+  category: tone
+  split: train
+  prompt: "this sounds too stiff — can you make it feel more friendly and warm? don't change what it says"
+- id: en-tone-12
+  category: tone
+  split: train
+  prompt: "Make this post sound more fun and upbeat please, keep all the same points though."
+- id: en-tone-13
+  category: tone
+  split: train
+  prompt: "Could you make my message sound a bit more chill and conversational? Same meaning, just relax it."
+- id: en-tone-14
+  category: tone
+  split: train
+  prompt: "I need this to sound more serious and formal for work — can you fix the tone but keep the facts?"
+- id: en-tone-15
+  category: tone
+  split: train
+  prompt: "can you tone down how salesy this sounds? make it more neutral, don't change the actual info"
+- id: en-tone-16
+  category: tone
+  split: train
+  prompt: "Make my cover letter sound more confident and enthusiastic, but keep everything I'm actually saying."
+- id: en-tone-17
+  category: tone
+  split: val
+  prompt: "Can you make this sound friendlier, like I'm texting a buddy? Keep the same info please."
+- id: en-tone-18
+  category: tone
+  split: test
+  prompt: "make it sound more polite and professional, same content just a nicer tone"
+- id: en-simplify-10
+  category: simplify
+  split: train
+  prompt: "Can you make this simpler? Too many big words, I want normal people to get it."
+- id: en-simplify-11
+  category: simplify
+  split: train
+  prompt: "this is way too complicated — can you dumb it down so it's easy to read? keep the main points"
+- id: en-simplify-12
+  category: simplify
+  split: train
+  prompt: "Could you rewrite my paragraph in plain english? The jargon is losing people."
+- id: en-simplify-13
+  category: simplify
+  split: train
+  prompt: "make this easier to understand please, shorter sentences and simple words, same meaning"
+- id: en-simplify-14
+  category: simplify
+  split: train
+  prompt: "Can you explain this more simply? Like so a kid could follow it, but don't drop the important stuff."
+- id: en-simplify-15
+  category: simplify
+  split: train
+  prompt: "my writing's too dense — can you break it up and use everyday words so it's clearer?"
+- id: en-simplify-16
+  category: simplify
+  split: train
+  prompt: "Could you cut the fancy vocabulary and make this read plain and simple for me?"
+- id: en-simplify-17
+  category: simplify
+  split: val
+  prompt: "Can you make this less complicated? Simple words and short sentences, same info please."
+- id: en-simplify-18
+  category: simplify
+  split: test
+  prompt: "make it simpler and easier to read, keep what it means though"
+- id: en-paraphrase-10
+  category: paraphrase
+  split: train
+  prompt: "Can you reword this so it doesn't sound copied? Same meaning, just different words."
+- id: en-paraphrase-11
+  category: paraphrase
+  split: train
+  prompt: "put this in different words for me but keep it saying the exact same thing, about the same length"
+- id: en-paraphrase-12
+  category: paraphrase
+  split: train
+  prompt: "Could you say this a different way? I don't want to change the meaning, just how it's worded."
+- id: en-paraphrase-13
+  category: paraphrase
+  split: train
+  prompt: "Can you rephrase my paragraph so it's not word-for-word the same but means the same thing?"
+- id: en-paraphrase-14
+  category: paraphrase
+  split: train
+  prompt: "reword this in your own words please, don't shorten it or add anything, just swap the phrasing"
+- id: en-paraphrase-15
+  category: paraphrase
+  split: train
+  prompt: "Can you rewrite this so it says the same thing but sounds different? Keep it roughly the same length."
+- id: en-paraphrase-16
+  category: paraphrase
+  split: train
+  prompt: "help me say this differently — same idea, totally new wording, don't cut or expand it"
+- id: en-paraphrase-17
+  category: paraphrase
+  split: val
+  prompt: "Can you restate this in fresh words? Same meaning and length, just phrased another way."
+- id: en-paraphrase-18
+  category: paraphrase
+  split: test
+  prompt: "reword this for me, keep the meaning exactly, just different sentences"
+- id: en-condense-10
+  category: condense
+  split: train
+  prompt: "Can you cut this down? It's way too long, keep the important stuff though."
+- id: en-condense-11
+  category: condense
+  split: train
+  prompt: "this is too wordy — can you trim the fat and make it shorter without losing the point?"
+- id: en-condense-12
+  category: condense
+  split: train
+  prompt: "Could you shorten my email? Same message, just get to the point faster."
+- id: en-condense-13
+  category: condense
+  split: train
+  prompt: "make this way shorter please, cut all the rambling but keep the main ideas"
+- id: en-condense-14
+  category: condense
+  split: train
+  prompt: "Can you tighten this up? I repeat myself a lot, just keep the key points."
+- id: en-condense-15
+  category: condense
+  split: train
+  prompt: "this post is too long for people to read — can you cut it down to the essentials?"
+- id: en-condense-16
+  category: condense
+  split: train
+  prompt: "Could you slim this down to like half the length? Don't lose anything important."
+- id: en-condense-17
+  category: condense
+  split: val
+  prompt: "Can you make this shorter and snappier? Cut the filler but keep what matters."
+- id: en-condense-18
+  category: condense
+  split: test
+  prompt: "trim this down for me, less words same point"
+- id: en-expand-10
+  category: expand
+  split: train
+  prompt: "Can you make this longer? It feels thin, add more detail but keep what I've got."
+- id: en-expand-11
+  category: expand
+  split: train
+  prompt: "this is too short — can you beef it up with examples and more explanation?"
+- id: en-expand-12
+  category: expand
+  split: train
+  prompt: "Could you flesh out my essay a bit more? Add depth to each point without changing them."
+- id: en-expand-13
+  category: expand
+  split: train
+  prompt: "can you add more meat to this? more detail and context, don't contradict anything I said"
+- id: en-expand-14
+  category: expand
+  split: train
+  prompt: "My paragraph feels bare — can you expand it with some supporting detail and examples?"
+- id: en-expand-15
+  category: expand
+  split: train
+  prompt: "Could you make this fuller and more detailed? I need it longer, keep my original points."
+- id: en-expand-16
+  category: expand
+  split: train
+  prompt: "help me pad this out with more explanation and context, but stay true to what it says"
+- id: en-expand-17
+  category: expand
+  split: val
+  prompt: "Can you build this out more? Add examples and elaboration, keep everything I already wrote."
+- id: en-expand-18
+  category: expand
+  split: test
+  prompt: "make it longer with more detail please, don't change the points I made"
+- id: en-restructure-10
+  category: restructure
+  split: train
+  prompt: "Can you reorganize this? It's all over the place, keep the content but put it in a better order."
+- id: en-restructure-11
+  category: restructure
+  split: train
+  prompt: "the flow of my essay is a mess — can you shuffle the paragraphs into a more logical order?"
+- id: en-restructure-12
+  category: restructure
+  split: train
+  prompt: "Could you rearrange this so the important stuff comes first? Don't drop anything."
+- id: en-restructure-13
+  category: restructure
+  split: train
+  prompt: "can you restructure my post so it makes more sense? move things around, keep all the info"
+- id: en-restructure-14
+  category: restructure
+  split: train
+  prompt: "This jumps around a lot — can you reorder the ideas so they build on each other properly?"
+- id: en-restructure-15
+  category: restructure
+  split: train
+  prompt: "Could you break this into better paragraphs and reorder it? Same content, just organized better."
+- id: en-restructure-16
+  category: restructure
+  split: train
+  prompt: "help me lay this out in a clearer order, merge or split stuff as needed, don't lose any points"
+- id: en-restructure-17
+  category: restructure
+  split: val
+  prompt: "Can you reorganize this into a better structure? Keep everything, just fix the sequence and grouping."
+- id: en-restructure-18
+  category: restructure
+  split: test
+  prompt: "rearrange this so it flows in a more logical order, keep all the content"
+- id: en-rewrite-10
+  category: rewrite
+  split: train
+  prompt: "Can you completely rewrite this so it sounds good? Keep the topic and the main points."
+- id: en-rewrite-11
+  category: rewrite
+  split: train
+  prompt: "honestly just rewrite the whole thing to sound better — same subject, same key info, new everything else"
+- id: en-rewrite-12
+  category: rewrite
+  split: train
+  prompt: "Could you redo this in a totally different style? Keep what it's about but change how it's written."
+- id: en-rewrite-13
+  category: rewrite
+  split: train
+  prompt: "can you help my essay get a better grade? rewrite it properly, keep my points and topic"
+- id: en-rewrite-14
+  category: rewrite
+  split: train
+  prompt: "This is rough — can you fully rewrite it with a new voice and flow, keeping the key facts?"
+- id: en-rewrite-15
+  category: rewrite
+  split: train
+  prompt: "Could you rewrite my whole cover letter to sound way more polished? Same info, fresh writing."
+- id: en-rewrite-16
+  category: rewrite
+  split: train
+  prompt: "just rewrite this from scratch so it reads like a pro wrote it, keep the topic and main stuff"
+- id: en-rewrite-17
+  category: rewrite
+  split: val
+  prompt: "Can you totally rework this into a better version? New style and structure, keep the important points."
+- id: en-rewrite-18
+  category: rewrite
+  split: test
+  prompt: "rewrite the whole thing to sound good, same topic and key info"
+- id: en-improve-1
+  category: improve
+  split: train
+  prompt: "Can you make this better? Do whatever you think it needs."
+- id: en-improve-2
+  category: improve
+  split: train
+  prompt: "make my essay better please, I want it to get a good grade"
+- id: en-improve-3
+  category: improve
+  split: train
+  prompt: "Improve the text below however you see fit while keeping its meaning and topic."
+- id: en-improve-4
+  category: improve
+  split: train
+  prompt: "This isn't great — can you fix it up and make it sound nicer? Same idea though."
+- id: en-improve-5
+  category: improve
+  split: train
+  prompt: "Enhance the writing below: better wording, flow, and clarity, without changing what it's about."
+- id: en-improve-6
+  category: improve
+  split: train
+  prompt: "can you clean this up and make it read way better? use your judgement"
+- id: en-improve-7
+  category: improve
+  split: train
+  prompt: "Make the text below stronger overall — sharper, clearer, more polished — keeping its core content."
+- id: en-improve-8
+  category: improve
+  split: val
+  prompt: "Could you make this sound good? Fix whatever needs fixing, keep the same meaning."
+- id: en-improve-9
+  category: improve
+  split: test
+  prompt: "make this better, up to you what to change, just keep what it's saying"

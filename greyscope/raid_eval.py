@@ -39,8 +39,9 @@ def resolve_flip(model, tok, *, n_buckets: int = 4, max_length: int = 2048) -> b
     from greyscope.eval import LABEL_TO_ID, orient_scores
     from greyscope.scoring import score_prompts
 
+    head = getattr(model.config, "head_type", "seqcls")
     val = prepare_editlens_data(DataConfig(n_buckets=n_buckets, train_subset=100)).val
-    vs = score_prompts(model, tok, val["prompt"], n_buckets, max_length=max_length)
+    vs = score_prompts(model, tok, val["prompt"], n_buckets, head=head, max_length=max_length)
     vlab = np.asarray([LABEL_TO_ID[t] for t in val["text_type"]])
     _, flip = orient_scores(vs, vlab)
     return bool(flip)

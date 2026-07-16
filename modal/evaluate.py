@@ -218,24 +218,29 @@ def bundle_calibration(merged: str = MERGED_DEFAULT) -> None:
     """Write calibration.json into the merged dir so single-text inference needs no
     calibration split at deploy time. Derivation in greyscope/calibration.py."""
     import json
+    import os
 
     import pandas as pd
     import torch
 
     use_app_packages()
+    os.chdir("/root/app")  # prepare_data resolves data/v2/splits relatively
+    os.environ["HF_DATASETS_CACHE"] = "/tmp/hfds_cache"  # re-parse changed split CSVs
     from greyscope.benchmark import fetch_editlens_csv
     from greyscope.calibration import build_calibration
     from greyscope.config import DataConfig
-    from greyscope.data import prepare_editlens_data
+    from greyscope.data import prepare_data
 
     merged_dir = f"{OUT_ROOT}/{merged}"
     tok, model = _load_merged(merged_dir, dtype=torch.bfloat16, device="cuda")
+    head = getattr(model.config, "head_type", "seqcls")
 
-    # TODO(calibration): this calibrates on EditLens EN only; the trilingual model needs
-    # per-language calibration on the val split (hardest human subgroup at ≤1% FPR).
-    data = prepare_editlens_data(DataConfig(n_buckets=4, train_subset=100))  # EditLens val + test
+    # Trilingual per-language calibration: prepare_data's val carries a `language` column, so
+    # build_calibration binds the binary threshold on the hardest per-language human subgroup
+    # (EN / ja / zh-TW) at ≤1% FPR, plus the non-native-English hard negatives.
+    data = prepare_data(DataConfig(n_buckets=4, train_subset=100))
     nn_texts = pd.read_csv(fetch_editlens_csv("nonnative_english", EVAL_DATA_DIR))["text"].tolist()
-    calib = build_calibration(model, tok, data, {"non_native_english": nn_texts})
+    calib = build_calibration(model, tok, data, {"non_native_english": nn_texts}, head=head)
     with open(f"{merged_dir}/calibration.json", "w") as fh:
         json.dump(calib, fh, indent=2)
     outputs_vol.commit()

@@ -46,9 +46,11 @@ def greyscope_score_fn(model, tok, *, n_buckets: int = 4, max_length: int = 2048
     from greyscope.preprocess import clean_text
     from greyscope.scoring import score_prompts
 
+    head = getattr(getattr(model, "config", None), "head_type", "seqcls")
+
     def score(texts: list[str]) -> np.ndarray:
         prompts = [PROMPT_TEMPLATE.format(text=clean_text(str(t), normalize=normalize)) for t in texts]
-        return score_prompts(model, tok, prompts, n_buckets, max_length=max_length)
+        return score_prompts(model, tok, prompts, n_buckets, head=head, max_length=max_length)
 
     return score
 
@@ -71,8 +73,9 @@ def run_ood_eval(model, tok, *, in_domain: float, n_buckets: int = 4, max_length
     from greyscope.scoring import score_prompts
 
     cfg = DataConfig(n_buckets=n_buckets)
+    head = getattr(model.config, "head_type", "seqcls")
     val = prepare_editlens_data(DataConfig(n_buckets=n_buckets, train_subset=100)).val  # full val
-    vs = score_prompts(model, tok, val["prompt"], n_buckets, max_length=max_length)
+    vs = score_prompts(model, tok, val["prompt"], n_buckets, head=head, max_length=max_length)
     vlab = np.asarray([LABEL_TO_ID[t] for t in val["text_type"]])
     v_or, flipped = orient_scores(vs, vlab)
     h_thresh, ai_thresh, _, _ = calibrate_thresholds(vlab, minmax_scale(v_or))
@@ -86,7 +89,7 @@ def run_ood_eval(model, tok, *, in_domain: float, n_buckets: int = 4, max_length
     }
     for name in OOD_SPLITS:
         ds = _prepare_editlens_split(raw[name], cfg, None)
-        sc = score_prompts(model, tok, ds["prompt"], n_buckets, max_length=max_length)
+        sc = score_prompts(model, tok, ds["prompt"], n_buckets, head=head, max_length=max_length)
         labs = np.asarray([LABEL_TO_ID[t] for t in ds["text_type"]])
         preds = predict_ternary(minmax_scale(-sc if flipped else sc), h_thresh, ai_thresh)
         m = evaluate(labs, preds)

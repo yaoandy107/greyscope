@@ -80,11 +80,12 @@ def test_prepare_data_uses_buckets_and_keeps_cjk(tmp_path):
     # column that broke CSV type-inference on Modal; the loader must not choke on it.
     rows = [
         {"text_id": "en/1", "text": "This is an English sample.", "language": "en",
-         "text_type": "human_written", "bucket": 0, "model": ""},
+         "text_type": "human_written", "bucket": 0, "model": "", "cosine_score": ""},
         {"text_id": "ja/1", "text": "これは日本語のテキストです。", "language": "ja",
-         "text_type": "ai_generated", "bucket": 3, "model": "openai/gpt-5.5"},
+         "text_type": "ai_generated", "bucket": 3, "model": "openai/gpt-5.5", "cosine_score": 1.0},
         {"text_id": "zh/1", "text": "這是繁體中文文字。", "language": "zh-tw",
-         "text_type": "ai_edited", "bucket": 2, "model": "anthropic/claude-sonnet-4.6"},
+         "text_type": "ai_edited", "bucket": 2, "model": "anthropic/claude-sonnet-4.6",
+         "cosine_score": 0.05},
     ]
     for split in ("train", "val", "test"):
         pd.DataFrame(rows).to_csv(tmp_path / f"{split}.csv", index=False)
@@ -107,7 +108,7 @@ def test_prepare_data_raw_text_when_prompt_template_disabled(tmp_path):
     from greyscope.preprocess import clean_text
 
     rows = [{"text_id": "en/1", "text": "An English sample.", "language": "en",
-             "text_type": "human_written", "bucket": 0, "model": ""}]
+             "text_type": "human_written", "bucket": 0, "model": "", "cosine_score": ""}]
     for split in ("train", "val", "test"):
         pd.DataFrame(rows).to_csv(tmp_path / f"{split}.csv", index=False)
 
@@ -115,3 +116,32 @@ def test_prepare_data_raw_text_when_prompt_template_disabled(tmp_path):
     data = prepare_data(DataConfig(n_buckets=4, use_prompt_template=False), splits_dir=str(tmp_path))
     assert data.train["prompt"] == [clean_text("An English sample.")]
     assert "Answer:" not in data.train["prompt"][0]
+
+
+def test_prepare_data_boundary_margin_drops_only_cut_adjacent_train_rows(tmp_path):
+    import pandas as pd
+
+    from greyscope.config import DataConfig
+    from greyscope.data import prepare_data
+
+    # EN cuts are (0.029, 0.148): 0.030 is a coin-flip label, 0.08 is solidly mid-bucket;
+    # human (empty cosine) and mirror (1.0 by class) rows must always survive the filter.
+    rows = [
+        {"text_id": "en/h", "text": "A human sample.", "language": "en",
+         "text_type": "human_written", "bucket": 0, "model": "", "cosine_score": ""},
+        {"text_id": "en/m", "text": "A mirrored sample.", "language": "en",
+         "text_type": "ai_generated", "bucket": 3, "model": "m", "cosine_score": 1.0},
+        {"text_id": "en/near", "text": "A boundary edit.", "language": "en",
+         "text_type": "ai_edited", "bucket": 1, "model": "m", "cosine_score": 0.030},
+        {"text_id": "en/far", "text": "A mid-bucket edit.", "language": "en",
+         "text_type": "ai_edited", "bucket": 1, "model": "m", "cosine_score": 0.08},
+    ]
+    for split in ("train", "val", "test"):
+        pd.DataFrame(rows).to_csv(tmp_path / f"{split}.csv", index=False)
+
+    data = prepare_data(DataConfig(n_buckets=4, boundary_margin=0.003), splits_dir=str(tmp_path))
+    assert len(data.train) == 3  # only the cut-adjacent edit dropped
+    assert len(data.val) == 4  # eval splits untouched — the metric distribution stays fixed
+
+    off = prepare_data(DataConfig(n_buckets=4, boundary_margin=0.0), splits_dir=str(tmp_path))
+    assert len(off.train) == 4  # 0 = disabled

@@ -23,4 +23,7 @@ class DataConfig:
     sample_weight_temperature: float = 0.5  # τ for the joint language+bucket sampler (0=natural,
     #                                         1=full balance); design τ≈0.3–0.5 (smoothed inverse)
     use_prompt_template: bool = True  # False = raw text (encoder arm; decoders keep the prompt)
+    boundary_margin: float = 0.0  # drop train rows with |cosine_score − bucket cut| < margin
+    #                               (label noise: humans agree only α≈0.5 on bucketed edit
+    #                               magnitude, EditLens Table 3). 0 = off.
     train_extra_files: tuple[str, ...] = ()  # extra train-only CSVs (e.g. the paraphrase aug)

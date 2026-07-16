@@ -67,8 +67,8 @@ def test_fetch_is_cached(tmp_path):
 def test_greyscope_score_fn_applies_clean_and_template(monkeypatch):
     captured = {}
 
-    def fake_score_prompts(model, tok, prompts, n_buckets, max_length):
-        captured.update(prompts=prompts, n_buckets=n_buckets, max_length=max_length)
+    def fake_score_prompts(model, tok, prompts, n_buckets, head="seqcls", max_length=2048):
+        captured.update(prompts=prompts, n_buckets=n_buckets, head=head, max_length=max_length)
         return np.zeros(len(prompts))
 
     monkeypatch.setattr(greyscope.scoring, "score_prompts", fake_score_prompts)
@@ -77,6 +77,7 @@ def test_greyscope_score_fn_applies_clean_and_template(monkeypatch):
 
     assert out.shape == (1,)
     assert captured["n_buckets"] == 4 and captured["max_length"] == 2048
+    assert captured["head"] == "seqcls"  # no model.config → seq-cls default; a CORN merged model sets head_type
     prompt = captured["prompts"][0]
     assert clean_text("  Some RAW   Text  ") in prompt  # lowercased + whitespace-normalized
     assert prompt.endswith("Answer: ")  # full template applied

@@ -726,6 +726,30 @@ def load_stackexchange_en(*, limit: int | None = None) -> list[HumanRecord]:
     return out
 
 
+def load_reddit_l2_en(*, limit: int | None = 3000) -> list[HumanRecord]:
+    """EN casual, NON-NATIVE-SPEAKER (L2 English) — European-flaired r/AskEurope (+ overflow
+    r/AskEuropeans / r/europe) authors writing English selftext, pre-2022. A large TRAINABLE pool
+    of EditLens's `nonnative_english` calibration phenomenon, so the model sees L2-English humans in
+    training too. Reddit is unlicensed → **human + mirror only**, never an edited derivative (like
+    PTT). `source_id = {subreddit}/{id}`. Lazy-imports the scraper to keep HF/EN loaders httpx-free."""
+    from greyscope.pipeline import redditl2
+
+    out: list[HumanRecord] = []
+    for doc in redditl2.fetch_l2_humans(target=limit or 3000):
+        out.append(HumanRecord(
+            text=doc["body"],
+            language="en",
+            source="reddit-l2",
+            source_id=f"{doc['subreddit']}/{doc['id']}",
+            text_register=CASUAL,
+            meta={"topic": doc["title"], "country": doc["country"],
+                  "length": len(doc["body"])},
+        ))
+        if limit is not None and len(out) >= limit:
+            break
+    return out
+
+
 def load_free_ai_en(*, limit: int | None = None) -> list[dict]:
     """EN ai_generated rows from PERMISSIVE synthetic corpora — Cosmopedia (Apache-2.0, Mixtral) +
     HelpSteer2 (CC BY 4.0, NVIDIA models). Neither carries proprietary-model provenance. These are

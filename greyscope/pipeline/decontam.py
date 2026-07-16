@@ -13,7 +13,9 @@ RAID, AND we submit to RAID at release — so train∩RAID would inflate the hea
 
 Method = canonical word-n-gram containment (GPT-3/Pile style). The reference is the union of
 RAID human texts + EditLens's held-out test humans + Beemo (an edited-MGT eval benchmark now that
-the permissive-EN backbone replaced EditLens training); a candidate sharing ≥`MIN_SHARED` distinct
+the permissive-EN backbone replaced EditLens training) + EditLens's `nonnative_english` calibration
+slice (so the new reddit-l2 L2-English human loader stays disjoint from that held-out hard-negative
+set); a candidate sharing ≥`MIN_SHARED` distinct
 13-grams with it is dropped. Two distinct 13-grams (~14–26 verbatim words) effectively never
 coincide between independent texts, and humans are the free FPR base, so we favor dropping.
 
@@ -220,6 +222,25 @@ def _editlens_test_humans() -> list[str]:
     return out
 
 
+def _nonnative_english_humans() -> list[str]:
+    """EditLens's `nonnative_english` eval slice (L2-English humans) for the reference — the
+    NEW reddit-l2 human loader (`corpora.load_reddit_l2_en`) targets the same phenomenon, so it
+    must stay disjoint from this held-out calibration slice (see
+    `modal/evaluate.py::bundle_calibration`, which scores this exact CSV). Reuses
+    `benchmark.fetch_editlens_csv` (the one CSV-fetch implementation) rather than a second one.
+    Best-effort: a load blip leaves the rest of the reference intact."""
+    import pandas as pd
+
+    from greyscope.benchmark import fetch_editlens_csv
+
+    try:
+        path = fetch_editlens_csv("nonnative_english", str(DECONTAM_DIR / "raw"))
+        return [t for t in pd.read_csv(path)["text"].tolist() if isinstance(t, str) and t.strip()]
+    except Exception as exc:  # noqa: BLE001 — an add-on safety net must never abort the build
+        print(f"    [decontam] nonnative_english skipped ({type(exc).__name__}) — reference stands")
+        return []
+
+
 def _beemo_humans() -> list[str]:
     """Beemo `human_output` texts for the reference — Beemo is an EVAL benchmark (edited MGT), so a
     train human overlapping it would leak. Used only as an n-gram exclusion hash, never redistributed
@@ -236,14 +257,16 @@ def _beemo_humans() -> list[str]:
 
 @lru_cache(maxsize=1)
 def english_reference(*, raid_limit: int | None = None) -> frozenset:
-    """Union n-gram reference of {RAID train humans + EditLens held-out test + Beemo humans}.
-    Cached per process; the RAID extraction is itself disk-cached, so re-runs are cheap."""
-    non_raid = list(_editlens_test_humans()) + list(_beemo_humans())
+    """Union n-gram reference of {RAID train humans + EditLens held-out test + Beemo humans +
+    EditLens nonnative_english humans}. Cached per process; the RAID extraction is itself
+    disk-cached, so re-runs are cheap."""
+    non_raid = list(_editlens_test_humans()) + list(_beemo_humans()) + list(_nonnative_english_humans())
     texts = list(non_raid)
     raid = 0
     for split in _RAID_SPLITS:
         split_texts = extract_raid_humans(split, limit=raid_limit)
         texts += split_texts
         raid += len(split_texts)
-    print(f"    [decontam] EN reference: {raid:,} RAID + {len(non_raid):,} EditLens-test + Beemo humans")
+    print(f"    [decontam] EN reference: {raid:,} RAID + {len(non_raid):,} "
+          "EditLens-test + Beemo + nonnative_english humans")
     return frozenset(build_reference(texts))

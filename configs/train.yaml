@@ -31,6 +31,8 @@ data:
                                   # thin ja/zh-TW), 0=natural mix, 0.5=sqrt.
   train_extra_files:              # paraphrase-invariance aug (ablation 2026-07-12: attack TPR@1% +13pt,
     - data/v2/splits/train_aug_paraphrase.csv  # graded-middle recall_bucket_2 0.08→0.40, floor ±0.007)
+  boundary_margin: 0.003          # drop train rows within ±margin of a bucket cut (label noise;
+                                  # ablation 2026-07-13: b1 F1 +0.11, OOD TPR@1% +0.09, macro +0.018)
 
 training:
   output_dir: outputs/production

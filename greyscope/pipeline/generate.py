@@ -337,6 +337,50 @@ def build_requests(records: list[dict]) -> list[GenRequest]:
     return requests
 
 
+def build_extra_edit_requests(records: list[dict], cached_rows: list[dict],
+                              extra_per_doc: int) -> list[GenRequest]:
+    """Additional edits for ALREADY-generated docs (the middle top-up): each doc draws
+    `extra_per_doc` prompts it hasn't used yet, from the SAME split its cached edits name —
+    split discipline holds, and no cached request is re-issued (a pool change re-seeds
+    `_edit_prompts_for_doc`, so re-running the normal path would cache-miss every old edit;
+    this path never touches the old draws). Docs without a cached edit are skipped. Pure."""
+    used: dict[tuple, set] = {}
+    split_of: dict[tuple, str] = {}
+    n_cached: dict[tuple, int] = {}
+    for row in cached_rows:
+        if row.get("text_type") != "ai_edited":
+            continue
+        key = (row["source"], row["source_id"])
+        used.setdefault(key, set()).add(row["meta"]["edit_prompt_id"])
+        split_of[key] = row["meta"]["split_tag"]
+        n_cached[key] = n_cached.get(key, 0) + 1
+
+    requests: list[GenRequest] = []
+    for record in records:
+        key = (record["source"], record["source_id"])
+        if key not in split_of:
+            continue
+        src, sid, lang = record["source"], record["source_id"], record["language"]
+        style = pick_style(record)
+        pool = [p for p in load_edit_prompts(lang)
+                if p["split"] == split_of[key] and p["id"] not in used[key]]
+        edit_gens = generators_for(lang, "edit")
+        for j in range(extra_per_doc):
+            if not pool:
+                break
+            i = n_cached[key] + j  # continue the per-doc edit index → fresh seeds, no collision
+            prompt = pool.pop(_seeded_index(pool, src, sid, f"edit{i}"))
+            e_gen = pick_generator(record, edit_gens, f"gen-edit{i}")
+            e_md = _seeded_choice(MARKDOWN_MODES, src, sid, e_gen["slug"], f"md-edit{i}")
+            requests.append(GenRequest(
+                "edit", record, e_gen, style["id"], e_md,
+                build_edit_messages(record, style, e_md, prompt),
+                reasoning=_reasoning_plan(e_gen, src, sid, e_gen["slug"], f"edit{i}", cheap_only=True),
+                edit_prompt=prompt,
+            ))
+    return requests
+
+
 # --- row shaping (canonical schema, matches corpora.HumanRecord.to_row) ------
 def _safe(slug: str) -> str:
     return slug.replace("/", "_").replace(":", "_")
@@ -441,10 +485,14 @@ def run_request(req: GenRequest) -> dict:
 
 
 def generate(records: list[dict], out_path: Path) -> list[dict]:
-    """Run every request (cached) and write rows. NETWORKED — the first spend.
+    """Run every request (cached) and write rows. NETWORKED — the first spend."""
+    return run_requests(build_requests(records), out_path)
+
+
+def run_requests(requests: list[GenRequest], out_path: Path) -> list[dict]:
+    """Execute prebuilt requests (cached) and write rows. NETWORKED.
     Requests are independent + I/O-bound → run concurrently; a terminal API failure is logged
     and skipped (kept out of the batch), never allowed to abort the whole run."""
-    requests = build_requests(records)
     slots: list[dict | None] = [None] * len(requests)
     with ThreadPoolExecutor(max_workers=GEN_CONCURRENCY) as pool:
         futures = {pool.submit(run_request, req): i for i, req in enumerate(requests)}

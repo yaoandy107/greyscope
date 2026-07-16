@@ -106,6 +106,25 @@ def prepare_editlens_data(cfg) -> PreparedData:
 SPLITS_DIR = "data/v2/splits"
 
 
+def drop_boundary_rows(split, margin: float):
+    """Drop rows whose `cosine_score` lies within `margin` of their language's bucket cut.
+
+    Boundary-adjacent labels are coin flips (a 0.030-vs-0.028 cosine at the EN 0.029 cut is
+    the same edit with a different bucket; human raters agree only α≈0.5 on bucketed edit
+    magnitude). Train-view only — the dataset artifact keeps every row. Rows without a real
+    edit cosine (humans = empty, mirrors = 1.0 by class) always pass."""
+    from greyscope.pipeline.assemble import BUCKET_CUTS
+
+    def keep(ex):
+        s = ex["cosine_score"]
+        if s is None or s in (0.0, 1.0):
+            return True
+        lo, hi = BUCKET_CUTS[ex["language"]]
+        return min(abs(s - lo), abs(s - hi)) >= margin
+
+    return split.filter(keep)
+
+
 def _prepare_split(split, *, apply_clean: bool, subset: int | None = None, seed: int = 42,
                       use_prompt_template: bool = True):
     """Format a training split. The precomputed per-language `bucket` is the label.
@@ -139,8 +158,11 @@ def prepare_data(cfg, splits_dir: str = SPLITS_DIR) -> PreparedData:
     # rows but strings on AI rows, so CSV type-inference picks `double` then fails to cast
     # "openai/..." — restricting columns sidesteps the mixed null/string inference entirely.
     raw = load_dataset("csv", data_files=files,
-                       usecols=["text", "language", "text_type", "bucket"])
+                       usecols=["text", "language", "text_type", "bucket", "cosine_score"])
     use_prompt = getattr(cfg, "use_prompt_template", True)
+    margin = getattr(cfg, "boundary_margin", 0.0)
+    if margin:
+        raw["train"] = drop_boundary_rows(raw["train"], margin)
     train = _prepare_split(raw["train"], apply_clean=cfg.apply_clean_text,
                               subset=cfg.train_subset, seed=cfg.seed, use_prompt_template=use_prompt)
     return PreparedData(

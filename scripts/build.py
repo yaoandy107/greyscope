@@ -41,6 +41,7 @@ HUMAN_PLAN: dict[str, list[tuple]] = {
         ("wikinews-en", lambda n: corpora.load_wikinews_en(limit=n), 2500),
         ("amazon-reviews-en", lambda n: corpora.load_amazon_reviews_en(limit=n), 2500),
         ("stackexchange", lambda n: corpora.load_stackexchange_en(limit=n), 2500),
+        ("reddit-l2", lambda n: corpora.load_reddit_l2_en(limit=n), 3000),
     ],
     "ja": [
         ("wiki40b-ja", lambda n: corpora.load_wiki40b("ja", limit=n), 4500),
@@ -156,6 +157,49 @@ def run_topup(language: str, n_new: int) -> None:
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
     print(f"[topup {language}] appended {len(new_rows)} rows → {path} "
           f"(now {len(cached) + len(new_rows)} rows). Run --assemble-only to re-split.")
+
+
+def run_topup_edits(languages: list[str], extra_per_doc: int, estimate_only: bool) -> None:
+    """Additional edits on ALREADY-generated docs — the graded-middle top-up (edits land ~58%
+    in buckets 1-2; no mirror overhead). Draws only prompts a doc hasn't used, same split as
+    its cached edits (see generate.build_extra_edit_requests). SPENDS unless estimate_only."""
+    prices = pricing.fetch_pricing() if estimate_only else None
+    total = 0.0
+    for lang in languages:
+        path = generate.GENERATED_DIR / f"{lang}.jsonl"
+        cached = _read_jsonl(path)
+        humans, _ = load_humans(lang)
+        requests = generate.build_extra_edit_requests(humans, cached, extra_per_doc)
+        if estimate_only:
+            cost = tokens_in = tokens_out = 0.0
+            for req in requests:
+                n_in = sum(_rough_tokens(m["content"], lang) for m in req.messages)
+                n_out = _rough_tokens(req.record["text"], lang)  # an edit ≈ source length back
+                p_in, p_out = prices.get(req.generator["slug"], (0.0, 0.0))
+                mult = 0.5 if req.generator["flex"] else 1.0
+                cost += mult * (n_in * p_in + n_out * p_out)
+                tokens_in += n_in
+                tokens_out += n_out
+            total += cost
+            print(f"  [{lang}] +{extra_per_doc} edits/doc → {len(requests)} requests "
+                  f"(~{int(tokens_in) // 1000}k in / {int(tokens_out) // 1000}k out) ≈ ${cost:.2f} list")
+            continue
+        tmp = generate.GENERATED_DIR / f"_{lang}_topup_edits.jsonl"
+        print(f"[topup-edits {lang}] {len(requests)} extra edits over "
+              f"{len({(r.record['source'], r.record['source_id']) for r in requests})} docs (SPENDS MONEY) …")
+        new_rows = generate.run_requests(requests, tmp)
+        with path.open("a", encoding="utf-8") as fh:  # APPEND — never overwrite the cached rows
+            for row in new_rows:
+                fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        print(f"[topup-edits {lang}] appended {len(new_rows)} rows → {path}. "
+              "Run --assemble-only to re-split.")
+    if estimate_only:
+        print(f"  TOTAL ≈ ${total:.2f} list (actual usually ~0.85× list; flex already halved)")
+
+
+def _rough_tokens(text: str, lang: str) -> float:
+    """List-price estimate only: ~4 chars/token for EN, ~1 token/CJK char."""
+    return len(text) / (4.0 if lang == "en" else 1.5)
 
 
 def _print_recommended_cuts(kept: list[dict]) -> None:
@@ -385,6 +429,11 @@ def main() -> None:
                         help="re-gate/score/assemble from cached generations (no API, no spend)")
     parser.add_argument("--topup-en", type=int, default=0, metavar="N",
                         help="additively generate N NEW EN docs on the current registry + append (SPENDS)")
+    parser.add_argument("--topup-edits", type=int, default=0, metavar="K",
+                        help="additively generate K EXTRA edits per already-generated doc, unused "
+                             "prompts only, per --langs (SPENDS; graded-middle volume)")
+    parser.add_argument("--topup-edits-estimate", type=int, default=0, metavar="K",
+                        help="grounded list-price estimate for --topup-edits K (no spend)")
     parser.add_argument("--paraphrase", action="store_true",
                         help="generate the paraphrase train-aug + attack-eval slices (SPENDS ~$5-8)")
     parser.add_argument("--paraphrase-estimate", action="store_true",
@@ -398,6 +447,9 @@ def main() -> None:
         run_build(args.langs)
     elif args.topup_en:
         run_topup("en", args.topup_en)
+    elif args.topup_edits or args.topup_edits_estimate:
+        run_topup_edits(args.langs, args.topup_edits or args.topup_edits_estimate,
+                        estimate_only=not args.topup_edits)
     elif args.paraphrase or args.paraphrase_estimate:
         run_paraphrase(estimate_only=not args.paraphrase)
     elif args.assemble_only:
