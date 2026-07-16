@@ -1,6 +1,7 @@
 """Dataset loading and prompt formatting.
 
-Rows bucket on `cosine_score` (lo=0.03, hi=0.15, n_buckets=4).
+Training consumes the precomputed per-language `bucket` int (from `assemble.BUCKET_CUTS`); the
+`cosine_score` cuts live there, not here.
 """
 
 from __future__ import annotations
@@ -125,8 +126,7 @@ def drop_boundary_rows(split, margin: float):
     return split.filter(keep)
 
 
-def _prepare_split(split, *, apply_clean: bool, subset: int | None = None, seed: int = 42,
-                      use_prompt_template: bool = True):
+def _prepare_split(split, *, apply_clean: bool, subset: int | None = None, seed: int = 42):
     """Format a training split. The precomputed per-language `bucket` is the label.
 
     No English word-count filter: `count_words` treats a CJK run as ~one word, so a
@@ -139,8 +139,7 @@ def _prepare_split(split, *, apply_clean: bool, subset: int | None = None, seed:
     if apply_clean:
         split = split.map(lambda ex: {"text": clean_text(ex["text"])})
     return split.map(lambda ex: {"label": int(ex["bucket"]),
-                                 "prompt": (PROMPT_TEMPLATE.format(text=ex["text"])
-                                            if use_prompt_template else ex["text"])})
+                                 "prompt": PROMPT_TEMPLATE.format(text=ex["text"])})
 
 
 def prepare_data(cfg, splits_dir: str = SPLITS_DIR) -> PreparedData:
@@ -159,18 +158,17 @@ def prepare_data(cfg, splits_dir: str = SPLITS_DIR) -> PreparedData:
     # "openai/..." — restricting columns sidesteps the mixed null/string inference entirely.
     raw = load_dataset("csv", data_files=files,
                        usecols=["text", "language", "text_type", "bucket", "cosine_score"])
-    use_prompt = getattr(cfg, "use_prompt_template", True)
     margin = getattr(cfg, "boundary_margin", 0.0)
     if margin:
         raw["train"] = drop_boundary_rows(raw["train"], margin)
     train = _prepare_split(raw["train"], apply_clean=cfg.apply_clean_text,
-                              subset=cfg.train_subset, seed=cfg.seed, use_prompt_template=use_prompt)
+                              subset=cfg.train_subset, seed=cfg.seed)
     return PreparedData(
         train=train,
         val=_prepare_split(raw["val"], apply_clean=cfg.apply_clean_text,
-                              subset=cfg.val_subset, seed=cfg.seed, use_prompt_template=use_prompt),
+                              subset=cfg.val_subset, seed=cfg.seed),
         test=_prepare_split(raw["test"], apply_clean=cfg.apply_clean_text,
-                               subset=cfg.test_subset, seed=cfg.seed, use_prompt_template=use_prompt),
+                               subset=cfg.test_subset, seed=cfg.seed),
         class_weights=compute_class_weights(train["label"], cfg.n_buckets),
         sample_weights=compute_sample_weights(
             train["language"], train["label"],

@@ -365,8 +365,7 @@ class StandaloneScorer:
 
 
 def eval_ood_splits(trainer, splits_dir, split_names, n_buckets, *, head, flip,
-                    h_thresh, ai_thresh, apply_clean=True, limit=None,
-                    use_prompt_template=True) -> dict:
+                    h_thresh, ai_thresh, apply_clean=True, limit=None) -> dict:
     """Score held-out OOD splits with the *val-calibrated* thresholds → ternary macro-F1 +
     per-language, the generalization check the in-domain test can't give (the in-domain-selection flaw).
 
@@ -388,8 +387,7 @@ def eval_ood_splits(trainer, splits_dir, split_names, n_buckets, *, head, flip,
             continue
         raw = load_dataset("csv", data_files=path,
                            usecols=["text", "language", "text_type", "bucket"])["train"]
-        ds = _prepare_split(raw, apply_clean=apply_clean, subset=limit,
-                               use_prompt_template=use_prompt_template)
+        ds = _prepare_split(raw, apply_clean=apply_clean, subset=limit)
         logits = _predict_bucket_logits(trainer, ds)
         if head == "corn":
             from greyscope.corn import corn_scalar_score

@@ -113,14 +113,14 @@ _MIRROR_FALLBACK = "formal"  # text_register with no template (e.g. "mixed")
 
 
 # --- seeded sampling --------------------------------------------------------
-def _seeded_index(seq: tuple | list, *parts) -> int:
+def seeded_index(seq: tuple | list, *parts) -> int:
     """Reproducible index: hash `parts` → position. No RNG, so re-runs reuse the cache."""
     digest = hashlib.sha256("\x00".join(map(str, parts)).encode("utf-8")).hexdigest()
     return int(digest, 16) % len(seq)
 
 
 def _seeded_choice(seq: tuple | list, *parts) -> object:
-    return seq[_seeded_index(seq, *parts)]
+    return seq[seeded_index(seq, *parts)]
 
 
 def generators_for(language: str, pool: str | None = None) -> list[dict]:
@@ -234,7 +234,7 @@ def _mirror_variant(record: dict, generator: dict) -> tuple[str, str]:
     if register not in by_register:
         register = _MIRROR_FALLBACK
     variants = by_register[register]
-    idx = _seeded_index(variants, record["source"], record["source_id"], generator["slug"], "mirror")
+    idx = seeded_index(variants, record["source"], record["source_id"], generator["slug"], "mirror")
     return variants[idx], f"{register}/v{idx + 1}"
 
 
@@ -302,7 +302,7 @@ def _edit_prompts_for_doc(record: dict) -> list[dict]:
     chosen = [first]
     for i in range(1, EDITS_PER_DOC):
         remaining = [p for p in split_pool if p not in chosen] or split_pool
-        chosen.append(remaining[_seeded_index(remaining, src, sid, f"edit{i}")])
+        chosen.append(remaining[seeded_index(remaining, src, sid, f"edit{i}")])
     return chosen
 
 
@@ -369,7 +369,7 @@ def build_extra_edit_requests(records: list[dict], cached_rows: list[dict],
             if not pool:
                 break
             i = n_cached[key] + j  # continue the per-doc edit index → fresh seeds, no collision
-            prompt = pool.pop(_seeded_index(pool, src, sid, f"edit{i}"))
+            prompt = pool.pop(seeded_index(pool, src, sid, f"edit{i}"))
             e_gen = pick_generator(record, edit_gens, f"gen-edit{i}")
             e_md = _seeded_choice(MARKDOWN_MODES, src, sid, e_gen["slug"], f"md-edit{i}")
             requests.append(GenRequest(
@@ -404,11 +404,11 @@ _WRAPPER_CUE = re.compile(
 _HEADER_MAX_CHARS = 100
 
 
-def _strip_think(text: str) -> str:
+def strip_think(text: str) -> str:
     return text.split("</think>")[-1].lstrip() if "</think>" in text else text
 
 
-def _strip_ai_header(text: str, language: str) -> tuple[str, str | None]:
+def strip_ai_header(text: str, language: str) -> tuple[str, str | None]:
     """Strip a leading chat-wrapper paragraph → (clean, removed | None). Only a SHORT first
     paragraph that is a pure ack or a colon header naming the output, and only when a body
     follows — so a real opening line is never removed."""
@@ -423,7 +423,7 @@ def _strip_ai_header(text: str, language: str) -> tuple[str, str | None]:
 
 
 def _base_row(record: dict, req: GenRequest, result: openrouter.ChatResult, text_type: str) -> dict:
-    text, stripped_header = _strip_ai_header(_strip_think(result.text), record["language"])
+    text, stripped_header = strip_ai_header(strip_think(result.text), record["language"])
     # edit prompt id disambiguates the >1 edits/doc (same doc, distinct prompt → unique text_id)
     edit_tag = f"/{req.edit_prompt['id']}" if req.kind == "edit" and req.edit_prompt else ""
     return {

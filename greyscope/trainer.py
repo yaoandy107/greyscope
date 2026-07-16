@@ -132,6 +132,20 @@ def build_weighted_trainer_class(class_weights: list[float] | None):
     return WeightedSeqClsTrainer
 
 
+class _WeightedSamplerMixin:
+    """Draws training examples via a WeightedRandomSampler from `_sample_weights` (joint
+    language+bucket balancing, from data.compute_sample_weights), falling back to the default
+    sampler when weights are None. Mixed in BEFORE Trainer so `super()` resolves to Trainer."""
+    _sample_weights = None
+
+    def _get_train_sampler(self, *args, **kwargs):
+        if self._sample_weights is None:
+            return super()._get_train_sampler(*args, **kwargs)
+        from torch.utils.data import WeightedRandomSampler
+        return WeightedRandomSampler(
+            self._sample_weights, num_samples=len(self._sample_weights), replacement=True)
+
+
 def build_sampler_trainer_class(sample_weights: list[float] | None):
     """Trainer subclass that draws training examples via a WeightedRandomSampler from
     per-sample weights (joint language+bucket balancing, from data.compute_sample_weights).
@@ -141,19 +155,12 @@ def build_sampler_trainer_class(sample_weights: list[float] | None):
     preferred here because it balances *language* too, which loss class-weights can't.
     """
     import torch
-    from torch.utils.data import WeightedRandomSampler
     from transformers import Trainer
 
     weights = torch.as_tensor(sample_weights, dtype=torch.double) if sample_weights else None
 
-    class SampledSeqClsTrainer(Trainer):
+    class SampledSeqClsTrainer(_WeightedSamplerMixin, Trainer):
         _sample_weights = weights
-
-        def _get_train_sampler(self, *args, **kwargs):
-            if self._sample_weights is None:
-                return super()._get_train_sampler(*args, **kwargs)
-            return WeightedRandomSampler(
-                self._sample_weights, num_samples=len(self._sample_weights), replacement=True)
 
     return SampledSeqClsTrainer
 
@@ -166,23 +173,16 @@ def build_corn_trainer_class(sample_weights: list[float] | None,
     `ranking_weight > 0` adds the MELD hard-negative ranking loss at the human/AI boundary
     (corn.corn_ranking_loss) — the TPR@low-FPR lever. 0 (default) = the plain conditional loss."""
     import torch
-    from torch.utils.data import WeightedRandomSampler
     from transformers import Trainer
 
     from greyscope.corn import corn_loss, corn_ranking_loss
 
     weights = torch.as_tensor(sample_weights, dtype=torch.double) if sample_weights else None
 
-    class CornTrainer(Trainer):
+    class CornTrainer(_WeightedSamplerMixin, Trainer):
         _sample_weights = weights
         _ranking_weight = ranking_weight
         _ranking_margin = ranking_margin
-
-        def _get_train_sampler(self, *args, **kwargs):
-            if self._sample_weights is None:
-                return super()._get_train_sampler(*args, **kwargs)
-            return WeightedRandomSampler(
-                self._sample_weights, num_samples=len(self._sample_weights), replacement=True)
 
         def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
             labels = inputs.pop("labels")

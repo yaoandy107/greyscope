@@ -199,8 +199,7 @@ def _train(cfg) -> None:
         trainer, cfg.data.splits_dir,
         ["test_llama", "test_enron", "ood_generator", "attack_paraphrase"],
         cfg.data.n_buckets, head=head, flip=ternary["score_flipped"],
-        h_thresh=ternary["h_thresh"], ai_thresh=ternary["ai_thresh"], limit=1200,
-        use_prompt_template=getattr(cfg.data, "use_prompt_template", True))
+        h_thresh=ternary["h_thresh"], ai_thresh=ternary["ai_thresh"], limit=1200)
     log.info("=== OOD / generalization (val-calibrated thresholds) ===")
     for name, r in ood.items():
         rd = r["detection"]

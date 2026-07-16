@@ -26,10 +26,10 @@ from pathlib import Path
 
 from greyscope.preprocess import score_to_bucket
 from greyscope.pipeline import openrouter, score
-from greyscope.pipeline.assemble import BUCKET_CUTS, N_BUCKETS, SPLITS_DIR, _COLUMNS
+from greyscope.pipeline.assemble import BUCKET_CUTS, N_BUCKETS, SPLITS_DIR, COLUMNS
 from greyscope.pipeline.gates import SIMPLIFIED_DROP_RATIO, simplified_ratio
 from greyscope.pipeline.generate import (
-    GEN_CONCURRENCY, MAX_COMPLETION_TOKENS, _seeded_index, _strip_ai_header, _strip_think,
+    GEN_CONCURRENCY, MAX_COMPLETION_TOKENS, seeded_index, strip_ai_header, strip_think,
 )
 
 # Strong paraphrasers only. AUG = train-side pool (seeded per-row pick → style diversity);
@@ -70,7 +70,7 @@ def read_split(name: str, splits_dir: Path = SPLITS_DIR) -> list[dict]:
 def write_rows(rows: list[dict], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=_COLUMNS, extrasaction="ignore")
+        writer = csv.DictWriter(fh, fieldnames=COLUMNS, extrasaction="ignore")
         writer.writeheader()
         for row in rows:
             writer.writerow({**row, "meta": json.dumps(row["meta"], ensure_ascii=False)})
@@ -102,7 +102,7 @@ def select_ai_rows(rows: list[dict], n_per_language: int) -> list[dict]:
 
 def model_for(row: dict, models: list[dict]) -> dict:
     """Seeded per-row pick from the pool (cache-stable across re-runs)."""
-    return models[_seeded_index(models, row["text_id"], "para")]
+    return models[seeded_index(models, row["text_id"], "para")]
 
 
 def sample_humans(split_name: str, n_per_language: int,
@@ -134,14 +134,14 @@ def build_messages(row: dict) -> list[dict]:
 def paraphrase_row(row: dict, paraphraser: dict, text: str) -> dict | None:
     """Shape the augmented row: original label kept (invariance), provenance in meta.
     None = failed paraphrase (empty, echo, or out-of-band length)."""
-    clean, _ = _strip_ai_header(_strip_think(text), row["language"])
+    clean, _ = strip_ai_header(strip_think(text), row["language"])
     clean = clean.strip()
     ratio = len(clean) / max(1, len(row["text"]))
     if not clean or clean == row["text"] or not (_LEN_RATIO[0] <= ratio <= _LEN_RATIO[1]):
         return None
     if row["language"] == "zh-tw" and simplified_ratio(clean) > SIMPLIFIED_DROP_RATIO:
         return None  # wholesale-Simplified output is the wrong variety for zh-TW
-    return {**{k: row[k] for k in _COLUMNS if k != "meta"},
+    return {**{k: row[k] for k in COLUMNS if k != "meta"},
             "text_id": f"{row['text_id']}/para",
             "text": clean,
             "bucket": int(row["bucket"]),  # CSV-read rows carry strings

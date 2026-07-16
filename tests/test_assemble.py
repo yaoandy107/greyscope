@@ -112,6 +112,17 @@ def test_held_out_generator_goes_to_ood_split():
     assert {r["split"] for r in rows if r["source_id"] == "d2"} == {"train"}          # normal doc → edit tag
 
 
+def test_held_out_generator_on_edit_only_still_reserves_doc():
+    # The leak case: mirror is an in-domain model, only the EDIT used the held-out generator.
+    # Detection must scan all rows, not just the mirror, or the held-out edit lands in train.
+    rows = _doc("ja", "wiki40b-ja", "d1", edit_cosine=0.05, split_tag="train")
+    for r in rows:
+        if r["text_type"] == "ai_edited":
+            r["model"] = assemble.OOD_GENERATOR["ja"]  # mirror stays "m"; only the edit is held-out
+    assemble.assign_splits(rows)
+    assert {r["split"] for r in rows} == {"ood_generator"}
+
+
 def test_dedupe_splits_removes_cross_and_within_split_exact_texts():
     def r(split, text, text_type="human_written"):
         return {"text": text, "text_type": text_type, "language": "en", "split": split}

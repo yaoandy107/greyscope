@@ -100,24 +100,6 @@ def test_prepare_data_uses_buckets_and_keeps_cjk(tmp_path):
     assert len(data.class_weights) == 4
 
 
-def test_prepare_data_raw_text_when_prompt_template_disabled(tmp_path):
-    import pandas as pd
-
-    from greyscope.config import DataConfig
-    from greyscope.data import prepare_data
-    from greyscope.preprocess import clean_text
-
-    rows = [{"text_id": "en/1", "text": "An English sample.", "language": "en",
-             "text_type": "human_written", "bucket": 0, "model": "", "cosine_score": ""}]
-    for split in ("train", "val", "test"):
-        pd.DataFrame(rows).to_csv(tmp_path / f"{split}.csv", index=False)
-
-    # encoder arm: prompt = raw (cleaned) text, no instruction wrapper eating context budget
-    data = prepare_data(DataConfig(n_buckets=4, use_prompt_template=False), splits_dir=str(tmp_path))
-    assert data.train["prompt"] == [clean_text("An English sample.")]
-    assert "Answer:" not in data.train["prompt"][0]
-
-
 def test_prepare_data_boundary_margin_drops_only_cut_adjacent_train_rows(tmp_path):
     import pandas as pd
 

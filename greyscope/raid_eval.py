@@ -53,7 +53,7 @@ def leaderboard_metadata(name: str, **fields) -> dict:
         "name": name,
         "detector_type": "metric-based",
         "organization": "",
-        "description": "Greyscope graded AI-involvement detector (Qwen3.5 LoRA seq-cls).",
+        "description": "Greyscope graded AI-involvement detector (Qwen3.5 LoRA, CORN ordinal head).",
         "open_source": True,
         "url": "",
     }

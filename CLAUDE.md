@@ -51,8 +51,9 @@ and `attack_paraphrase{,_test}.csv` (held-out-paraphraser eval slices with human
 - **Decontam is EN-only by design** — ja/zh-TW sources are disjoint from public benchmarks (see
   `decontam.py` docstring); their integrity rests on internal held-out slices.
 - **Train view vs release view** — `assemble` keeps every edit for *training* (training ≠
-  redistribution); the release view (`drop_unshippable=True`) drops edits derived from license-restricted
-  sources (wiki40b / ptt / amazon), since shipping an edit ships a derivative. Release is not built yet.
+  redistribution); the release view (`drop_unshippable=True`) drops edits derived from any non-permissive
+  source (share-alike wiki40b / stackexchange, ODC-BY fineweb, unlicensed ptt, amazon — see
+  `generate.SHIPPABLE_EDIT_SOURCES`), since shipping an edit ships a derivative. Release is not built yet.
 - **Cost is recorded** — chat/embed send `usage:{include:true}`; the build report leads with actual
   `usage.cost`, list-price as cross-check. A spend-cap 403 aborts the build with a clear message.
 

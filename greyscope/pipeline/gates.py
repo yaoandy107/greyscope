@@ -42,7 +42,7 @@ DEDUP_THRESHOLD = 0.8
 
 # A refusal = the model declining the task (drop the row). VERB-anchored so positive content
 # ("I can't recommend it enough", "我慢できません", "抱歉這麼晚才推薦") is NOT a false hit.
-# Leading chat-wrappers are stripped at row shaping (generate._strip_ai_header), not gated here.
+# Leading chat-wrappers are stripped at row shaping (generate.strip_ai_header), not gated here.
 _REFUSALS = (
     "i can't help", "i cannot help", "i can't assist", "i cannot assist",
     "i can't provide", "i cannot provide", "i can't comply", "i cannot comply",

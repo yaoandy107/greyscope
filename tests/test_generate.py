@@ -227,7 +227,7 @@ def test_edit_row_shippability_by_source():
 
 
 def test_strip_ai_header_removes_wrappers_keeps_content():
-    strip = gen._strip_ai_header
+    strip = gen.strip_ai_header
     # real leading chat-wrappers removed, body kept (EN, markdown-wrapped, zh-TW colon, JA ack)
     assert strip("Sure, here is the rewritten text:\n\nThe museum opened.", "en")[0] == "The museum opened."
     assert strip("**Here is the edited text:**\n\nBody.", "en")[0] == "Body."
@@ -241,8 +241,8 @@ def test_strip_ai_header_removes_wrappers_keeps_content():
 
 
 def test_strip_think_and_output_only_prevention():
-    assert gen._strip_think("<think>reasoning</think>The content.") == "The content."
-    assert gen._strip_think("No trace.") == "No trace."
+    assert gen.strip_think("<think>reasoning</think>The content.") == "The content."
+    assert gen.strip_think("No trace.") == "No trace."
     sp = gen._system_prompt({"language": "en", "source": "s", "source_id": "x", "meta": {}, "text": "t"},
                             {"id": "plain", "family": "plain"}, "default")
     assert gen._OUTPUT_ONLY["en"] in sp  # prevention line always appended

@@ -40,8 +40,8 @@ SPLIT_RATIO = {"train": 0.8, "val": 0.1, "test": 0.1}
 OOD_GENERATOR = {"ja": "inclusionai/ling-2.6-flash", "zh-tw": "google/gemma-4-31b-it"}
 OOD_DOMAIN: dict[str, str] = {}
 
-_COLUMNS = ("text_id", "text", "language", "text_type", "source", "source_id",
-            "model", "prompt_id", "markdown_mode", "cosine_score", "bucket", "meta")
+COLUMNS = ("text_id", "text", "language", "text_type", "source", "source_id",
+           "model", "prompt_id", "markdown_mode", "cosine_score", "bucket", "meta")
 
 
 def drop_unshippable_edits(rows: list[dict]) -> list[dict]:
@@ -89,12 +89,16 @@ def assign_splits(rows: list[dict]) -> list[dict]:
     for key, group in by_doc.items():
         lang, source = key[0], key[1]
         inherited = next((r["split"] for r in group if r.get("split")), None)
-        generator = next((r["model"] for r in group if r.get("model")), None)
+        # Held-out generator is checked across ALL rows, not just the mirror: ling/gemma also
+        # produce edits, so a doc whose mirror differs but whose edit used the held-out model must
+        # still co-locate to ood_generator, else that edit leaks into train.
+        ood_model = OOD_GENERATOR.get(lang)
+        uses_ood = ood_model is not None and any(r.get("model") == ood_model for r in group)
         if inherited:
             split = inherited
         elif source == OOD_DOMAIN.get(lang):
             split = "ood_domain"
-        elif generator is not None and generator == OOD_GENERATOR.get(lang):
+        elif uses_ood:
             split = "ood_generator"
         else:
             edit = next((r for r in group if r["text_type"] == "ai_edited"
@@ -165,7 +169,7 @@ def write_splits(rows: list[dict], out_dir: Path = SPLITS_DIR) -> dict[str, int]
     for split, split_rows in by_split.items():
         counts[split] = len(split_rows)
         with (out_dir / f"{split}.csv").open("w", encoding="utf-8", newline="") as fh:
-            writer = csv.DictWriter(fh, fieldnames=_COLUMNS, extrasaction="ignore")
+            writer = csv.DictWriter(fh, fieldnames=COLUMNS, extrasaction="ignore")
             writer.writeheader()
             for row in split_rows:
                 writer.writerow({**row, "meta": json.dumps(row.get("meta", {}), ensure_ascii=False)})
