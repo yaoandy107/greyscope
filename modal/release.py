@@ -28,6 +28,7 @@ cpu_infer_image = (
         "sentencepiece",
         "protobuf",
         "numpy",
+        "scipy",  # greyscope.corn (CORN decode)
         "emoji",  # greyscope.preprocess, pulled in via greyscope.inference
     )
     .env({"HF_HOME": "/root/.cache/huggingface"})
@@ -35,6 +36,9 @@ cpu_infer_image = (
     # package (used by _load_merged) ship explicitly.
     .add_local_file(str(Path(__file__).resolve().parent / "common.py"), remote_path="/root/common.py")
     .add_local_dir(str(Path(__file__).resolve().parent.parent / "greyscope"), remote_path="/root/app/greyscope")
+    # Model cards, pushed as each repo's README.md.
+    .add_local_file(str(Path(__file__).resolve().parent.parent / "MODEL_CARD.md"), remote_path="/root/app/MODEL_CARD.md")
+    .add_local_file(str(Path(__file__).resolve().parent.parent / "MODEL_CARD_INT4.md"), remote_path="/root/app/MODEL_CARD_INT4.md")
 )
 
 
@@ -116,8 +120,12 @@ def export_cpu_check(merged: str = MERGED_DEFAULT) -> None:
               return_tensors="pt", add_special_tokens=False)
     with torch.no_grad():
         logits = model(**enc).logits
-    probs = torch.softmax(logits.float(), dim=1)
-    scalar = (probs @ torch.arange(model.config.num_labels).float()) / (model.config.num_labels - 1)
+    if getattr(model.config, "head_type", "seqcls") == "corn":
+        from greyscope.corn import corn_scalar_score
+        scalar = torch.from_numpy(corn_scalar_score(logits.float().numpy()))
+    else:
+        probs = torch.softmax(logits.float(), dim=1)
+        scalar = (probs @ torch.arange(model.config.num_labels).float()) / (model.config.num_labels - 1)
     print(f"[cpu] forward OK, logits shape {tuple(logits.shape)}")
     for i, t in enumerate(texts):
         print(f"[cpu]   text{i}: scalar_ai_score={scalar[i].item():.3f}  logits={logits[i].tolist()}")
@@ -131,28 +139,35 @@ def export_cpu_check(merged: str = MERGED_DEFAULT) -> None:
     volumes=_VOLUMES,
 )
 def push_to_hf(
-    repo: str = "yaoandy107/greyscope-qwen3.5-4b",
+    repo: str = "yaoandy107/greyscope-v2-qwen3.5-4b",
     merged: str = MERGED_DEFAULT,
     private: bool = True,
 ) -> None:
-    """Push the merged artifact (weights, tokenizer, calibration.json) to the HF Hub.
-    The repo lands private; flip it public on the Hub once the model card is in place."""
+    """Push the v2 artifacts to the HF Hub: the merged bf16 model (weights, tokenizer,
+    calibration.json, MODEL_CARD.md as README) to `repo`, and the int4 sibling directory
+    to `<repo>-int4` (MODEL_CARD_INT4.md as README). Repos land private; flip them public
+    on the Hub after a final look."""
     import os
+    import shutil
 
     from huggingface_hub import HfApi
 
     merged_dir = f"{OUT_ROOT}/{merged}"
+    int4_dir = f"{os.path.dirname(merged_dir)}/int4"
     for required in ("model.safetensors", "config.json", "calibration.json"):
         assert os.path.isfile(f"{merged_dir}/{required}"), f"missing {required} in {merged_dir}"
+    assert os.path.isdir(int4_dir), f"missing int4 artifact at {int4_dir}"
+
+    shutil.copyfile("/root/app/MODEL_CARD.md", f"{merged_dir}/README.md")
+    shutil.copyfile("/root/app/MODEL_CARD_INT4.md", f"{int4_dir}/README.md")
+    if not os.path.isfile(f"{int4_dir}/calibration.json"):  # int4 users need the thresholds too
+        shutil.copyfile(f"{merged_dir}/calibration.json", f"{int4_dir}/calibration.json")
 
     api = HfApi(token=os.environ["HF_TOKEN"])
-    api.create_repo(repo_id=repo, repo_type="model", private=private, exist_ok=True)
-    print(f"[push] uploading {merged_dir} → {repo} (private={private})...")
-    api.upload_folder(
-        folder_path=merged_dir,
-        repo_id=repo,
-        repo_type="model",
-        commit_message="Greyscope — merged weights + calibration",
-    )
-    print(f"[push] done: https://huggingface.co/{repo}")
-    print("[push] repo is private; add the model card, then set it public on the Hub.")
+    for repo_id, folder in ((repo, merged_dir), (f"{repo}-int4", int4_dir)):
+        api.create_repo(repo_id=repo_id, repo_type="model", private=private, exist_ok=True)
+        print(f"[push] uploading {folder} → {repo_id} (private={private})...")
+        api.upload_folder(folder_path=folder, repo_id=repo_id, repo_type="model",
+                          commit_message="Greyscope v2 — weights + calibration")
+        print(f"[push] done: https://huggingface.co/{repo_id}")
+    print("[push] repos are private; review the cards, then set them public on the Hub.")

@@ -21,7 +21,7 @@ import torch
 
 from .preprocess import clean_text
 
-DEFAULT_MODEL = "yaoandy107/greyscope-qwen3.5-4b"
+DEFAULT_MODEL = "yaoandy107/greyscope-v2-qwen3.5-4b"
 
 
 Mode = Literal["ternary", "binary"]

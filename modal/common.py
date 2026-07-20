@@ -75,7 +75,7 @@ _TRAINING_SECRETS = [hf_secret, wandb_secret]
 
 # Paths inside the container; MERGED_DEFAULT is the shipped run's merged artifact.
 OUT_ROOT = "/root/app/outputs"
-MERGED_DEFAULT = "export_production/merged"
+MERGED_DEFAULT = "export_production-r2/merged"
 
 
 def use_app_packages(forbid_unsloth: bool = True) -> None:
