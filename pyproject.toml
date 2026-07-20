@@ -52,6 +52,7 @@ train = [
 ]
 dev = [
     "greyscope[eval]",
+    "greyscope[v2]",  # the pipeline tests import the scrapers, which need bs4/httpx/pyyaml
     "pytest>=7",
     "pytest-xdist",
     "ruff",
