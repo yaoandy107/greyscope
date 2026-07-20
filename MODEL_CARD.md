@@ -18,9 +18,44 @@ model-index:
     results:
       - task:
           type: text-classification
+          name: AI-text detection (binary)
+        dataset:
+          name: RAID
+          type: liamdugan/raid
+          split: extra
+        metrics:
+          - type: auroc
+            name: AUROC
+            value: 0.995
+          - type: recall
+            name: TPR@1%FPR
+            value: 0.944
+      - task:
+          type: text-classification
+          name: AI-text detection (binary)
+        dataset:
+          name: C-ReD
+          type: c-red
+        metrics:
+          - type: auroc
+            name: AUROC
+            value: 0.999
+      - task:
+          type: text-classification
           name: AI-text detection (ternary)
         dataset:
-          name: Greyscope v2 trilingual test
+          name: EditLens
+          type: pangram/editlens_iclr
+          split: test
+        metrics:
+          - type: f1
+            name: Ternary macro-F1
+            value: 0.895
+      - task:
+          type: text-classification
+          name: AI-text detection (ternary)
+        dataset:
+          name: Greyscope v2 trilingual test (internal)
           type: greyscope-v2
           split: test
         metrics:

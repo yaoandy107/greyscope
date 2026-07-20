@@ -53,6 +53,7 @@ train = [
 dev = [
     "greyscope[eval]",
     "greyscope[v2]",  # the pipeline tests import the scrapers, which need bs4/httpx/pyyaml
+    "torchao",  # otherwise the int4 export-config test importorskips itself out of CI
     "pytest>=7",
     "pytest-xdist",
     "ruff",

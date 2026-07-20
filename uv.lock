@@ -894,6 +894,7 @@ dev = [
     { name = "ruff" },
     { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scikit-learn", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "torchao" },
 ]
 eval = [
     { name = "hydra-core" },
@@ -977,6 +978,7 @@ requires-dist = [
     { name = "scikit-learn", marker = "extra == 'eval'" },
     { name = "sentencepiece", marker = "extra == 'train'" },
     { name = "torch", specifier = ">=2.4.0" },
+    { name = "torchao", marker = "extra == 'dev'" },
     { name = "transformers", specifier = ">=5.5.0" },
     { name = "trl", marker = "extra == 'train'", specifier = ">=0.13.0" },
     { name = "unsloth", marker = "extra == 'train'", git = "https://github.com/unslothai/unsloth.git?rev=af6504f900fe611a056e66eec6ab74976eab7f34" },
