@@ -39,8 +39,12 @@ def test_quantization_config_fp8_excludes_score_and_gdn():
 def test_quantization_config_int4_tile_packed_excludes_score():
     pytest.importorskip("torchao")
     cfg = _quantization_config("int4")
-    assert cfg.modules_to_not_convert == ["score"]
-    assert str(cfg.quant_type.int4_packing_format) == "Int4PackingFormat.TILE_PACKED_TO_4D"
+    assert "score" in cfg.modules_to_not_convert
+    # The GDN low-rank projections don't divide into int4 groups — same exclusions as fp8.
+    for pattern in ("linear_attn.conv1d", "linear_attn.in_proj_a", "linear_attn.in_proj_b"):
+        assert pattern in cfg.modules_to_not_convert
+    # torchao renders this as an enum or a plain string depending on version.
+    assert "tile_packed_to_4d" in str(cfg.quant_type.int4_packing_format).lower()
     assert cfg.quant_type.group_size == 128
 
 
