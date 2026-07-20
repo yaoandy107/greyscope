@@ -85,6 +85,7 @@ ternary macro-F1 0.877 / ai_edited F1 0.823 / detection AUROC 0.986; ties editle
 + in-domain graded ternary (0.895) and on independent RAID-10k (0.995). Shipped artifact complete at
 `export_production-r2/`: `merged/` (bf16 + `calibration.json`) + `int4/` (HQQ). Trilingual calibration binds
 the ≤1% FPR binary threshold on the non-native-EN subgroup (0.837; per-lang en/ja/zh-tw 0.055/0.321/0.255);
-int4 tracks bf16 at 98.4% bucket agreement. Release docs ready (README/MODEL_CARD/MODEL_CARD_INT4
-rewritten for v2; `push_to_hf` targets greyscope-v2-qwen3.5-4b + -int4, private-first). HF push still
-pending. Modal CLI: this project lives in the `yaoandy107` workspace — run with `MODAL_PROFILE=yaoandy107`.**
+int4 tracks bf16 at 98.4% bucket agreement. **SHIPPED 2026-07-20**: code on `main` (CI green), weights
+pushed to `greyscope-v2-qwen3.5-4b` + `-int4` — both **private**, awaiting a manual public flip on the
+Hub; v1's repo untouched. Modal CLI: this project lives in the `yaoandy107` workspace — run with
+`MODAL_PROFILE=yaoandy107`.**
