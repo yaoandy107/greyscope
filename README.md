@@ -52,12 +52,6 @@ The same thing is available from Python: `from greyscope.inference import detect
 
 ## Results
 
-The verdict from the benchmarks below: v2 is the best open detector for Japanese, Traditional
-Chinese, text from current (2026) AI models, and AI text paraphrased to dodge detection. At telling
-human from AI in English, it ties the best open detector. Its one weak spot is English text that AI
-only *edited* rather than wrote: v1, trained on 2.5× more English, is still better there (0.924 vs
-0.895 on [EditLens](https://arxiv.org/abs/2510.03154)'s test sets).
-
 ### Trilingual test set (ours)
 
 This is our own test set. We report ternary macro-F1, with each detector's thresholds calibrated on our
@@ -108,6 +102,12 @@ on the same rows; note it only trained on English.
 |---|---|---|
 | **Greyscope v2** | 0.998 | 0.984 |
 | editlens-Llama-3.2-3B | 0.939 | 0.423 |
+
+Taken together: v2 is the best open detector for Japanese, Traditional Chinese, text from current
+(2026) AI models, and AI text paraphrased to dodge detection. At telling human from AI in English, it
+ties the best open detector. Its one weak spot is English text that AI only *edited* rather than wrote:
+v1, trained on 2.5× more English, is still better there (0.924 vs 0.895 on
+[EditLens](https://arxiv.org/abs/2510.03154)'s test sets).
 
 ## Footprint
 
