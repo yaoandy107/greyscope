@@ -65,8 +65,7 @@ validation split.
 
 ### EditLens splits (English)
 
-EditLens publishes its own English splits, so we ran the same comparison there. Enron and Llama-70B are
-out-of-domain (OOD) for every detector shown.
+We report the same metric here. Enron and Llama-70B are out-of-domain (OOD) for every detector shown.
 
 | Detector | In-domain | Enron (OOD) | Llama-70B (OOD) |
 |---|---|---|---|
@@ -82,7 +81,10 @@ On the simpler binary question of whether any AI is present, both reach AUROC â‰
 
 ### RAID
 
-[RAID](https://raid-bench.xyz/) is an independent benchmark. We scored a 10,000-row sample.
+[RAID](https://raid-bench.xyz/) is an independent benchmark, and we scored its labelled 10,000-row
+`extra` split. The baselines are our measurements too: EditLens releases per-row scores for these
+detectors, and we computed AUROC and TPR from those columns with the same harness. Neither EditLens nor
+Pangram published AUROC on RAID themselves.
 
 | Detector | AUROC | TPR@1%FPR |
 |---|---|---|
@@ -93,8 +95,9 @@ On the simpler binary question of whether any AI is present, both reach AUROC â‰
 
 ### C-ReD (Simplified Chinese)
 
-C-ReD is a Simplified-Chinese benchmark that reports AUROC per domain. The baselines come from
-[its paper](https://arxiv.org/abs/2604.11796); we scored Greyscope on a balanced 4,025-row sample.
+C-ReD is a Simplified-Chinese benchmark that reports AUROC per domain. The baselines are the published
+numbers from [its paper](https://arxiv.org/abs/2604.11796), measured on the full benchmark, while we
+scored Greyscope on a balanced 4,025-row sample of it.
 
 | Detector | Film | Composition | Q&A | News | Paper |
 |---|---|---|---|---|---|
@@ -107,11 +110,13 @@ C-ReD is a Simplified-Chinese benchmark that reports AUROC per domain. The basel
 ### Paraphrased AI text
 
 Paraphrasing is a common way to evade detection. We rewrote AI text with a paraphraser held out of
-training and scored it against human text.
+training and scored it against human text (1,793 rows across all three languages). We ran editlens-Llama
+on the same rows; note it only trained on English.
 
 | Detector | AUROC | TPR@1%FPR |
 |---|---|---|
 | **Greyscope v2** | 0.998 | 0.984 |
+| editlens-Llama-3.2-3B | 0.939 | 0.423 |
 
 ## Footprint
 
