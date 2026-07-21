@@ -103,11 +103,11 @@ positives.
 
 ## Evaluation
 
-The short version: v2 is strongest on Japanese, Traditional Chinese, text from current (2026)
-generators, and paraphrased AI text. Its weakness is graded English editing, where v1 — trained on 2.5×
-more English — still leads (0.924 vs 0.895 ternary macro-F1 on [EditLens](https://arxiv.org/abs/2510.03154)'s
-English splits; we skip a full table there because its models trained on that distribution, so the
-comparison favours them). On binary detection, v2 matches the best open detector.
+The verdict from the benchmarks below: v2 is the strongest open detector on Japanese, Traditional
+Chinese, current (2026) generators, and paraphrased AI text, and it matches the best open detector on
+binary English detection. Its one weakness is grading English *editing*, where v1 — trained on 2.5× more
+English — still leads (0.924 vs 0.895 ternary macro-F1 on
+[EditLens](https://arxiv.org/abs/2510.03154)'s English splits).
 
 ### Trilingual test set (ours)
 
