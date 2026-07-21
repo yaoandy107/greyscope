@@ -44,17 +44,6 @@ model-index:
           type: text-classification
           name: AI-text detection (ternary)
         dataset:
-          name: EditLens
-          type: pangram/editlens_iclr
-          split: test
-        metrics:
-          - type: f1
-            name: Ternary macro-F1
-            value: 0.895
-      - task:
-          type: text-classification
-          name: AI-text detection (ternary)
-        dataset:
           name: Greyscope v2 trilingual test (internal)
           type: greyscope-v2
           split: test
@@ -78,7 +67,7 @@ and it agrees with the bf16 model on 98.4% of buckets). The code is at
 [v1](https://huggingface.co/yaoandy107/greyscope-qwen3.5-4b) is still published.
 
 These weights are Apache-2.0; v1 was CC BY-NC-SA. That change had a cost: v2 trained on 24k English rows
-against the 60k v1 and editlens-Llama use, and both still score higher on English graded splits.
+against v1's 60k, so v1 still grades English editing better (see Evaluation).
 
 ## Usage
 
@@ -114,6 +103,12 @@ positives.
 
 ## Evaluation
 
+The short version: v2 is strongest on Japanese, Traditional Chinese, text from current (2026)
+generators, and paraphrased AI text. Its weakness is graded English editing, where v1 — trained on 2.5×
+more English — still leads (0.924 vs 0.895 ternary macro-F1 on [EditLens](https://arxiv.org/abs/2510.03154)'s
+English splits; we skip a full table there because its models trained on that distribution, so the
+comparison favours them). On binary detection, v2 matches the best open detector.
+
 ### Trilingual test set (ours)
 
 This is our own test set. We report ternary macro-F1, with each detector's thresholds calibrated on our
@@ -125,22 +120,6 @@ validation split.
 | Greyscope v1 | 0.820 | 0.818 | 0.786 | 0.855 |
 | editlens-Llama-3.2-3B | 0.717 | 0.690 | 0.679 | 0.763 |
 
-### EditLens splits (English)
-
-We report the same metric here. Enron and Llama-70B are out-of-domain (OOD) for every detector shown.
-
-| Detector | In-domain | Enron (OOD) | Llama-70B (OOD) |
-|---|---|---|---|
-| **Greyscope v2** | 0.895 | 0.846 | 0.908 |
-| Greyscope v1 | 0.924 | 0.867 | 0.938 |
-| editlens-Llama-3.2-3B | 0.895 | 0.868 | 0.920 |
-| editlens-roberta-large | 0.881 | 0.673 | 0.859 |
-| Fast-DetectGPT | 0.545 | 0.589 | 0.506 |
-| Binoculars | 0.523 | 0.575 | 0.478 |
-
-On the simpler binary question of whether any AI is present, both reach AUROC ≥ 0.999 and TPR ≥ 0.993 at
-1% false positives.
-
 ### RAID
 
 [RAID](https://raid-bench.xyz/) is an independent benchmark, and we scored its labelled 10,000-row
@@ -151,6 +130,7 @@ Pangram published AUROC on RAID themselves.
 | Detector | AUROC | TPR@1%FPR |
 |---|---|---|
 | **Greyscope v2** | 0.995 | 0.944 |
+| Greyscope v1 | 0.991 | 0.935 |
 | editlens-Llama-3.2-3B | 0.996 | 0.959 |
 | editlens-roberta-large | 0.960 | not reported |
 | Pangram v3.2 (closed-source) | 0.999 | not reported |
@@ -202,7 +182,7 @@ some generators and paraphrasers out for evaluation. The recipe and pipeline are
 
 ## Citation
 
-The English graded evaluation uses the EditLens benchmark:
+English graded evaluation during development used the EditLens benchmark:
 
 ```bibtex
 @article{Thai2025EditLens,
