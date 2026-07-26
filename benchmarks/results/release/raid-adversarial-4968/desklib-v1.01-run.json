@@ -1,0 +1,11 @@
+{
+  "model_id": "desklib-v1.01",
+  "model_revision": "5fdea974cd4287c61674951ec78803aa274e2fb7",
+  "gpu": "L4",
+  "rows": 4992,
+  "load_seconds": 21.411381978,
+  "score_seconds": 399.336220979,
+  "rows_per_second": 12.500744329582153,
+  "score_min": 0.00016954536637498103,
+  "score_max": 0.9999942566599015
+}

@@ -12,10 +12,9 @@ furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
-NOTE: This MIT license covers ONLY the code in this repository. The training
-dataset `pangram/editlens_iclr` is distributed under CC BY-NC-SA 4.0, which is
-non-commercial. Model weights produced by training on that dataset inherit the
-dataset's non-commercial restriction regardless of this code's license.
+NOTE: This MIT license covers only the code in this repository. Greyscope v2
+weights are released separately under Apache-2.0. The legacy v1 weights remain
+under CC BY-NC-SA 4.0.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

@@ -1,0 +1,24 @@
+{
+  "method": "paired percentile bootstrap",
+  "direction": "model_a minus model_b",
+  "unit": "row",
+  "samples": 500,
+  "seed": 20260722,
+  "confidence": 0.95,
+  "metrics": {
+    "edit_correlation.pearson": {
+      "estimate": -0.020323210599872188,
+      "low": -0.04590607379365429,
+      "high": 0.006061175343579278,
+      "successful_samples": 500
+    },
+    "edit_correlation.spearman": {
+      "estimate": 0.034963576406041974,
+      "low": 0.012474100319932176,
+      "high": 0.058551050077909464,
+      "successful_samples": 500
+    }
+  },
+  "model_a": "greyscope-v2-bf16",
+  "model_b": "editlens-llama-3.2-3b"
+}

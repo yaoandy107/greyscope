@@ -234,6 +234,50 @@ def _quantization_config(precision: str):
     raise ValueError(f"unknown precision {precision!r}; expected 'int4' or 'fp8'")
 
 
+def _average_ranks(values):
+    """Small NumPy-only equivalent of scipy.stats.rankdata(method='average')."""
+    import numpy as np
+
+    values = np.asarray(values, dtype=float)
+    order = np.argsort(values, kind="mergesort")
+    ranks = np.empty(len(values), dtype=float)
+    start = 0
+    while start < len(values):
+        end = start + 1
+        while end < len(values) and values[order[end]] == values[order[start]]:
+            end += 1
+        ranks[order[start:end]] = (start + end - 1) / 2.0
+        start = end
+    return ranks
+
+
+def quantization_equivalence(ref_scores, quant_scores, ref_buckets, quant_buckets) -> dict:
+    """Return the release-gate measurements for a compressed artifact."""
+    import numpy as np
+
+    ref_scores = np.asarray(ref_scores, dtype=float)
+    quant_scores = np.asarray(quant_scores, dtype=float)
+    ref_buckets = np.asarray(ref_buckets)
+    quant_buckets = np.asarray(quant_buckets)
+    shapes = {ref_scores.shape, quant_scores.shape, ref_buckets.shape, quant_buckets.shape}
+    if len(shapes) != 1 or ref_scores.ndim != 1:
+        raise ValueError("bf16 and quantized predictions must have matching shapes")
+    if not len(ref_scores):
+        raise ValueError("equivalence requires at least one prediction")
+
+    delta = np.abs(ref_scores - quant_scores)
+    pearson = float(np.corrcoef(ref_scores, quant_scores)[0, 1])
+    spearman = float(np.corrcoef(_average_ranks(ref_scores), _average_ranks(quant_scores))[0, 1])
+    return {
+        "score_pearson": pearson,
+        "score_spearman": spearman,
+        "score_mae": float(delta.mean()),
+        "score_maxdiff": float(delta.max()),
+        "bucket_agreement": float((ref_buckets == quant_buckets).mean()),
+        "n": int(len(ref_scores)),
+    }
+
+
 def export_quantized(
     merged_dir: str,
     precision: str,  # "int4" (HQQ, CPU/MPS-friendly) | "fp8" (needs sm89+: L4 yes, A100 no)
@@ -249,7 +293,6 @@ def export_quantized(
     Probe drift is REPORTED, with only a coarse sanity floor asserted — the real
     at-precision quality measurement is the eval that follows, not this gate.
     """
-    import numpy as np
     import torch
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
@@ -304,19 +347,28 @@ def export_quantized(
         ref_b, quant_b = corn_predict_buckets(ref), corn_predict_buckets(quant)
     else:
         ref_b, quant_b = ref.argmax(1), quant.argmax(1)
-    bucket_agree = float((ref_b == quant_b).mean())
-    scalar_maxdiff = float(np.abs(scalar(ref) - scalar(quant)).max())
-    print(f"[quant] bf16-vs-{precision}  scalar_maxdiff={scalar_maxdiff:.4f}  "
-          f"bucket_agree={bucket_agree:.4f}")
+    equivalence = quantization_equivalence(scalar(ref), scalar(quant), ref_b, quant_b)
+    print(
+        f"[quant] bf16-vs-{precision}  pearson={equivalence['score_pearson']:.4f}  "
+        f"spearman={equivalence['score_spearman']:.4f}  "
+        f"mae={equivalence['score_mae']:.4f}  "
+        f"maxdiff={equivalence['score_maxdiff']:.4f}  "
+        f"bucket_agree={equivalence['bucket_agreement']:.4f}"
+    )
     # Coarse catastrophe gate on a 64-row probe — the real quality bar is the at-precision
     # eval that follows (ood_eval), not this. The broken default-int4-qparams recipe drifted
     # the score 0.68-0.86 on tail rows; int4+hqq sits ~0.26-0.43. 0.55 fails a broken recipe
     # (missing hqq / unexcluded GDN) without tripping on a merely-lossy-but-usable artifact.
-    assert scalar_maxdiff <= 0.55, (
-        f"{precision} ai-score drifts up to {scalar_maxdiff:.2f} vs bf16 — quantization looks "
+    assert equivalence["score_maxdiff"] <= 0.55, (
+        f"{precision} ai-score drifts up to {equivalence['score_maxdiff']:.2f} vs bf16 — quantization looks "
         "broken, not merely lossy (default int4 qparams? GDN not excluded?)"
+    )
+    assert equivalence["score_pearson"] >= 0.99, (
+        f"{precision} score correlation {equivalence['score_pearson']:.3f} is below 0.99"
+    )
+    assert equivalence["bucket_agreement"] >= 0.98, (
+        f"{precision} bucket agreement {equivalence['bucket_agreement']:.3f} is below 0.98"
     )
 
     print(f"\n[quant] PASS: {precision} artifact saved, reloads, and tracks bf16.")
-    return {"out_dir": out_dir, "precision": precision,
-            "scalar_maxdiff": scalar_maxdiff, "bucket_agree": bucket_agree}
+    return {"out_dir": out_dir, "precision": precision, **equivalence}

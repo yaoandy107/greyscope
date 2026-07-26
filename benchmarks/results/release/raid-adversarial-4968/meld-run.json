@@ -1,0 +1,11 @@
+{
+  "model_id": "meld",
+  "model_revision": "3383dc2f02abacb45a7dd28568e82e0836ec740e",
+  "gpu": "L4",
+  "rows": 4992,
+  "load_seconds": 19.999220646,
+  "score_seconds": 785.8592642030001,
+  "rows_per_second": 6.352282434518054,
+  "score_min": 0.0696328803896904,
+  "score_max": 0.9999943971633911
+}

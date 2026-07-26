@@ -1,0 +1,15 @@
+{
+  "model_id": "greyscope-v1-bf16",
+  "model_source": "yaoandy107/greyscope-qwen3.5-4b",
+  "model_revision": "bb25d4158a6795c6fce225156c0e330084ffb665",
+  "adapter": "greyscope",
+  "max_length": 2048,
+  "benchmark": "apt-eval",
+  "snapshot_rows_sha256": "0c66e45de34bd1f8154fe483ba57e0351ab0bedeb6b62a1c7cbbe0c6adfd59ec",
+  "snapshot_texts_sha256": "e9f75435b022995dbce58ef9977dc31cb10a9a73de198d3a3a9d4fe697e6e642",
+  "snapshot_records_sha256": "a8b33c124b58611e4c4d9e7f692a3441c36ccce5a5ce8bfcec71d6bbf361b8e5",
+  "base_source": null,
+  "base_revision": null,
+  "head_type": "seqcls",
+  "normalize_unicode": false
+}

@@ -12,12 +12,14 @@ Mac numbers are a conservative floor.
     python scripts/bench_mac_latency.py
     python scripts/bench_mac_latency.py --dtype float32 --runs 30
     python scripts/bench_mac_latency.py --greyscope-path outputs/production/merged
+    python scripts/bench_mac_latency.py --mlx-path outputs/export_production-r2/mlx-4bit
 """
 
 from __future__ import annotations
 
 import argparse
 import gc
+import json
 import statistics
 import time
 
@@ -137,6 +139,62 @@ def _bench(spec: dict, device: str, dtype, runs: int, warmup: int) -> dict:
             "load_s": load_s, "rows": rows}
 
 
+def _bench_mlx(path: str, runs: int, warmup: int) -> dict:
+    import mlx.core as mx
+    from mlx_lm import load
+    from mlx_lm.utils import get_total_parameters
+
+    mx.clear_cache()
+    mx.reset_peak_memory()
+    t0 = time.perf_counter()
+    model, _, config = load(path, lazy=False, return_config=True)
+    quantization = config.get("quantization", {})
+    precision = (
+        f"{quantization.get('bits')}-bit {quantization.get('mode', 'quantized')}"
+        if quantization
+        else str(config.get("model_dtype", "unquantized"))
+    )
+    print(f"\n=== Greyscope MLX {precision}  ({path}) ===", flush=True)
+    mx.eval(model.parameters())
+    mx.synchronize()
+    load_s = time.perf_counter() - t0
+    params = get_total_parameters(model) / 1e9
+    print(
+        f"  loaded in {load_s:.1f}s | params={params:.2f}B | "
+        f"mem≈{mx.get_active_memory() / 1024**3:.1f}GB",
+        flush=True,
+    )
+
+    vocab = int(config.get("vocab_size", 32000))
+    rows = []
+    for seq_len in SEQ_LENS:
+        ids = mx.array([[((i + 1) * 7919) % vocab for i in range(seq_len)]])
+
+        def _step():
+            logits = model(ids)
+            mx.eval(logits)
+            mx.synchronize()
+
+        for _ in range(warmup):
+            _step()
+        times = []
+        for _ in range(runs):
+            start = time.perf_counter()
+            _step()
+            times.append((time.perf_counter() - start) * 1000)
+        med = statistics.median(times)
+        rows.append({"seq_len": seq_len, "median_ms": med, "tok_per_s": seq_len / (med / 1000)})
+        print(f"  seq={seq_len:>4}: median={med:8.1f} ms  ({seq_len/(med/1000):,.0f} tok/s)", flush=True)
+
+    return {
+        "label": f"Greyscope MLX {precision} ({path})",
+        "params": params,
+        "mem_gb": mx.get_peak_memory() / 1024**3,
+        "load_s": load_s,
+        "rows": rows,
+    }
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dtype", default="bfloat16", choices=["float16", "bfloat16", "float32"])
@@ -144,16 +202,34 @@ def main() -> None:
     ap.add_argument("--warmup", type=int, default=3)
     ap.add_argument("--greyscope-path", default=None,
                     help="Local path to the merged Greyscope seq-cls dir (else reconstruct from base).")
+    ap.add_argument("--mlx-path", default=None,
+                    help="Local native MLX Greyscope artifact; skips the Transformers models.")
+    ap.add_argument("--only-greyscope", action="store_true",
+                    help="Skip comparison models; useful for measuring a release artifact.")
+    ap.add_argument("--output-json", default=None,
+                    help="Optional path for machine-readable measurements.")
     args = ap.parse_args()
 
-    device, dtype = _device_and_dtype(args.dtype)
-    print(f"device={device}  dtype={dtype}  torch={torch.__version__}", flush=True)
+    if args.mlx_path:
+        with open(f"{args.mlx_path}/config.json", encoding="utf-8") as fh:
+            quantization = json.load(fh).get("quantization", {})
+        bits = quantization.get("bits", "unknown")
+        mode = quantization.get("mode", "quantized")
+        device, dtype = "metal", f"mlx.{bits}bit-{mode}"
+        print(f"device={device}  dtype={dtype}", flush=True)
+        results = [_bench_mlx(args.mlx_path, args.runs, args.warmup)]
+    else:
+        device, dtype = _device_and_dtype(args.dtype)
+        print(f"device={device}  dtype={dtype}  torch={torch.__version__}", flush=True)
 
-    detectors = [dict(d) for d in DETECTORS]
-    if args.greyscope_path:  # measure the real merged model if weights are available locally
-        detectors[0]["repo"], detectors[0]["reconstruct"] = args.greyscope_path, False
+        detectors = [dict(d) for d in DETECTORS]
+        if args.greyscope_path:  # measure the real merged model if weights are available locally
+            detectors[0]["repo"], detectors[0]["reconstruct"] = args.greyscope_path, False
+            detectors[0]["label"] = f"Greyscope ({args.greyscope_path})"
+        if args.only_greyscope:
+            detectors = detectors[:1]
 
-    results = [_bench(d, device, dtype, args.runs, args.warmup) for d in detectors]
+        results = [_bench(d, device, dtype, args.runs, args.warmup) for d in detectors]
 
     print("\n" + "=" * 78)
     print(f"{'detector':<28} {'params':>7} {'mem':>7} {'128tok':>9} {'512tok':>9} {'1024tok':>9}")
@@ -163,9 +239,19 @@ def main() -> None:
         print(f"{r['label']:<28} {r['params']:>6.2f}B {r['mem_gb']:>6.1f}G "
               f"{ms.get(128,'-'):>9} {ms.get(512,'-'):>9} {ms.get(1024,'-'):>9}")
     print("=" * 78)
-    print(f"{device}, {str(dtype).split('.')[-1]}, batch=1, median of {args.runs} runs. roberta caps at 512 tokens.")
-    print("Greyscope uses the portable GDN path here (no flash-linear-attention); its CUDA "
-          "kernel is faster. Latency/memory are architecture-faithful (weight values don't affect them).")
+    print(f"{device}, {str(dtype).split('.')[-1]}, batch=1, median of {args.runs} runs.")
+    if not args.mlx_path:
+        print("Greyscope uses the portable GDN path here (no flash-linear-attention); its CUDA "
+              "kernel is faster. Latency/memory are architecture-faithful (weight values don't affect them).")
+    if args.output_json:
+        with open(args.output_json, "w", encoding="utf-8") as fh:
+            json.dump({
+                "device": device,
+                "dtype": str(dtype),
+                "runs": args.runs,
+                "warmup": args.warmup,
+                "results": results,
+            }, fh, indent=2)
 
 
 if __name__ == "__main__":

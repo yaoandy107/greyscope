@@ -1,0 +1,21 @@
+{
+  "method": "percentile bootstrap",
+  "unit": "row",
+  "samples": 500,
+  "seed": 20260722,
+  "confidence": 0.95,
+  "metrics": {
+    "edit_correlation.pearson": {
+      "estimate": 0.5457394539442373,
+      "low": 0.5113217382167804,
+      "high": 0.5788316732618408,
+      "successful_samples": 500
+    },
+    "edit_correlation.spearman": {
+      "estimate": 0.6449805064272213,
+      "low": 0.6185570313358592,
+      "high": 0.6741810789151367,
+      "successful_samples": 500
+    }
+  }
+}

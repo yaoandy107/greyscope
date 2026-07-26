@@ -16,3 +16,9 @@ wandb/
 
 data/
 .agents/memory/
+
+# Internal train-split diagnostics; not release evidence.
+benchmarks/manifests/raid-10k.json
+benchmarks/manifests/raid-adversarial-english-4992.json
+benchmarks/results/release/raid-10k/
+benchmarks/results/release/raid-adversarial-english-4992/

@@ -1,0 +1,11 @@
+{
+  "model_id": "editlens-llama-3.2-3b",
+  "model_revision": "b5f8044f631f5b455eafbcb569dcf175f2b0726d",
+  "gpu": "A100-40GB",
+  "rows": 4992,
+  "load_seconds": 19.437523783,
+  "score_seconds": 588.868440384,
+  "rows_per_second": 8.47727549594053,
+  "score_min": 0.014400033045408772,
+  "score_max": 0.9999698812278124
+}

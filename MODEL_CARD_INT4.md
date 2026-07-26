@@ -1,31 +1,38 @@
 ---
 license: apache-2.0
-language:
-  - en
-  - ja
-  - zh
+language: [en, ja, zh]
 library_name: transformers
-pipeline_tag: text-classification
+inference: false
 base_model: yaoandy107/greyscope-v2-qwen3.5-4b
 base_model_relation: quantized
-tags:
-  - ai-generated-text-detection
-  - text-classification
-  - int4
-  - torchao
+tags: [ai-generated-text-detection, text-classification, int4, torchao]
 ---
 
-# Greyscope v2 (Qwen3.5-4B) — int4
+# Greyscope v2 int4
 
-This is an int4-HQQ (torchao) quantization of
-[`yaoandy107/greyscope-v2-qwen3.5-4b`](https://huggingface.co/yaoandy107/greyscope-v2-qwen3.5-4b), a
-graded AI-text detector for English, Japanese, and Traditional Chinese. It is about 3 GB on disk, and
-uses 3.4 GB of memory on Apple silicon. On the validation set it gives the same bucket as the bf16
-model 98.4% of the time.
+This is the 3.5 GB Transformers int4-HQQ build of Greyscope v2. It returns the same continuous
+`ai_involvement` score and `human` / `AI-edited` / `AI-generated` labels as the
+[bf16 model](https://huggingface.co/yaoandy107/greyscope-v2-qwen3.5-4b).
 
-Use it to save memory, not time. torchao has no fast int4 kernel for Apple silicon yet, so on MPS this
-model is slower than bf16: about 13 s per 512-token pass on an M1 Pro, against 2.6 s for bf16.
+Use this build when you need Transformers but cannot fit bf16. Do not use it on Apple Silicon; use
+[MLX 4-bit](https://huggingface.co/yaoandy107/greyscope-v2-qwen3.5-4b-mlx-4bit).
 
-Usage, calibration (`calibration.json`), and limitations are the same as the bf16 repo. See its
-[model card](https://huggingface.co/yaoandy107/greyscope-v2-qwen3.5-4b) for details. The code is at
-[`yaoandy107/greyscope`](https://github.com/yaoandy107/greyscope).
+## Quick start
+
+```bash
+git clone https://github.com/yaoandy107/greyscope
+cd greyscope
+uv sync --extra int4
+uv run greyscope --model int4 "Paste a paragraph here."
+```
+
+## Quantization check
+
+The int4 build agreed with bf16 on 98.4% of predicted buckets in a 64-row NVIDIA L4 release check.
+Validate it on your deployment hardware.
+
+On an M1 Pro, the current torchao MPS path failed the 180-row quality check: 0.173 macro-F1 and
+0.442 AUROC. It also took 16.82 seconds for a 512-token passage.
+
+Evaluations, calibration, training details, and limitations are documented on the
+[bf16 model card](https://huggingface.co/yaoandy107/greyscope-v2-qwen3.5-4b).

@@ -1,0 +1,30 @@
+{
+  "method": "paired percentile bootstrap",
+  "direction": "model_a minus model_b",
+  "unit": "source",
+  "samples": 500,
+  "seed": 20260722,
+  "confidence": 0.95,
+  "metrics": {
+    "binary.tpr@fpr1": {
+      "estimate": 0.020645645645645645,
+      "low": -0.15267454954954954,
+      "high": 0.10060060060060061,
+      "successful_samples": 500
+    },
+    "binary.tpr@fpr5": {
+      "estimate": -0.08783783783783783,
+      "low": -0.1986111111111111,
+      "high": 0.05743243243243243,
+      "successful_samples": 500
+    },
+    "binary.auroc": {
+      "estimate": -0.020922949977004057,
+      "low": -0.039086073686298926,
+      "high": -0.003988222456690977,
+      "successful_samples": 500
+    }
+  },
+  "model_a": "greyscope-v2-bf16",
+  "model_b": "greyscope-v1-bf16"
+}

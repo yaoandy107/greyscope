@@ -1,0 +1,26 @@
+{
+  "date_range": "2026-07-22/2026-07-24",
+  "provider": "Modal",
+  "apps": [
+    "greyscope-release-compare",
+    "greyscope-raid-compare"
+  ],
+  "settled_jobs": 46,
+  "billing_entries": 48,
+  "settled_total_usd": 11.37136691,
+  "adversarial_raid_smoke_usd": 0.45123354,
+  "adversarial_raid_evaluation_usd": 4.12241277,
+  "adversarial_raid_english_evaluation_usd": 3.25133193,
+  "adversarial_raid_english_v1_v2_usd": 1.14606340,
+  "adversarial_raid_english_additional_comparators_usd": 2.10526853,
+  "pending_billing_object_ids": [
+    "ap-enkIIdH7i81rPwq4PKL0jY",
+    "ap-uUNydvWVjqCuYD3Oq5Gxqo",
+    "ap-yvAvHsyW0s7uBBYz8wYwUJ",
+    "ap-SXzhVbNNGLRx0V9optFZF6",
+    "ap-CQSRcw6Vrhv6H6sVUBE5v7"
+  ],
+  "pending_estimate_usd_less_than": 1.0,
+  "includes_smoke_and_failed_runs": true,
+  "commercial_detector_api_cost_usd": 0.0
+}

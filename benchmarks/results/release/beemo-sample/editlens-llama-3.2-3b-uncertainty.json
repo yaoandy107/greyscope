@@ -1,0 +1,27 @@
+{
+  "method": "percentile bootstrap",
+  "unit": "source",
+  "samples": 1000,
+  "seed": 20260722,
+  "confidence": 0.95,
+  "metrics": {
+    "binary.auroc": {
+      "estimate": 0.817439060682304,
+      "low": 0.7911317285754224,
+      "high": 0.8423154573492412,
+      "successful_samples": 1000
+    },
+    "binary.tpr@fpr1": {
+      "estimate": 0.042042042042042045,
+      "low": 0.023273273273273273,
+      "high": 0.16705142642642642,
+      "successful_samples": 1000
+    },
+    "binary.tpr@fpr5": {
+      "estimate": 0.29954954954954954,
+      "low": 0.19214527027027026,
+      "high": 0.41742680180180175,
+      "successful_samples": 1000
+    }
+  }
+}

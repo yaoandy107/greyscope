@@ -5,196 +5,147 @@ language:
   - ja
   - zh
 library_name: transformers
-pipeline_tag: text-classification
+inference: false
 base_model: unsloth/Qwen3.5-4B-Base
 base_model_relation: finetune
 tags:
   - ai-generated-text-detection
-  - ai_detection
   - text-classification
   - lora
-model-index:
-  - name: greyscope-v2-qwen3.5-4b
-    results:
-      - task:
-          type: text-classification
-          name: AI-text detection (binary)
-        dataset:
-          name: RAID
-          type: liamdugan/raid
-          split: extra
-        metrics:
-          - type: auroc
-            name: AUROC
-            value: 0.995
-          - type: recall
-            name: TPR@1%FPR
-            value: 0.944
-      - task:
-          type: text-classification
-          name: AI-text detection (binary)
-        dataset:
-          name: C-ReD
-          type: c-red
-        metrics:
-          - type: auroc
-            name: AUROC
-            value: 0.999
-      - task:
-          type: text-classification
-          name: AI-text detection (ternary)
-        dataset:
-          name: Greyscope v2 trilingual test (internal)
-          type: greyscope-v2
-          split: test
-        metrics:
-          - type: f1
-            name: Ternary macro-F1
-            value: 0.877
 ---
 
-# Greyscope v2 (Qwen3.5-4B)
+# Greyscope v2
 
-Greyscope estimates *how much* of a text is AI-written, from human through AI-edited to fully
-AI-generated, as a continuous 0–1 `ai_involvement` score. It works in English, Japanese, and
-Traditional Chinese, and it is a LoRA finetune of
-[`unsloth/Qwen3.5-4B-Base`](https://huggingface.co/unsloth/Qwen3.5-4B-Base) that loads with plain
-`transformers`.
+Greyscope estimates how much AI was involved in a passage. It returns a score from 0 to 1 and one
+of three labels: `human`, `AI-edited`, or `AI-generated`. It supports English, Japanese, and
+Traditional Chinese.
 
-An [int4 build](https://huggingface.co/yaoandy107/greyscope-v2-qwen3.5-4b-int4) is also available (~3 GB,
-and it agrees with the bf16 model on 98.4% of buckets). The code is at
-[`yaoandy107/greyscope`](https://github.com/yaoandy107/greyscope). The older English-only
-[v1](https://huggingface.co/yaoandy107/greyscope-qwen3.5-4b) is still published.
+This is the reference bf16 model. Other builds use the same labels and calibration:
 
-These weights are Apache-2.0; v1 was CC BY-NC-SA. That change had a cost: v2 trained on 24k English rows
-against v1's 60k, so v1 still grades English editing better (see Evaluation).
+| Artifact | Size | Best for |
+|---|---:|---|
+| [bf16](https://huggingface.co/yaoandy107/greyscope-v2-qwen3.5-4b) | 8.4 GB | CUDA, or CPU when speed is not important |
+| [MLX Q4](https://huggingface.co/yaoandy107/greyscope-v2-qwen3.5-4b-mlx-4bit) | 2.4 GB | Apple Silicon default |
+| [Transformers int4](https://huggingface.co/yaoandy107/greyscope-v2-qwen3.5-4b-int4) | 3.5 GB | Lower-memory Transformers; not for Mac |
 
-## Usage
+## Quick start
 
-You need `transformers>=5.5.0` for the Qwen3.5 architecture.
-
-```python
-import torch
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
-
-repo = "yaoandy107/greyscope-v2-qwen3.5-4b"
-tok = AutoTokenizer.from_pretrained(repo)
-model = AutoModelForSequenceClassification.from_pretrained(repo, dtype=torch.bfloat16).eval()
-model.config.pad_token_id = tok.pad_token_id or tok.eos_token_id
-```
-
-This returns raw CORN bucket logits. To turn them into a label and a score, use the calibrated decode in
-[`greyscope/inference.py`](https://github.com/yaoandy107/greyscope/blob/main/greyscope/inference.py):
+The [Greyscope repository](https://github.com/yaoandy107/greyscope) contains the calibrated decoder:
 
 ```bash
-python -m greyscope.inference "Paste a paragraph here." --mode ternary  # or binary
+git clone https://github.com/yaoandy107/greyscope
+cd greyscope
+uv sync
+uv run greyscope "Paste a paragraph here."
 ```
 
-Do not load this model in fp16. fp16 overflows the GDN recurrence and produces wrong scores. bf16 and
-the int4 build are both fine.
+From Python:
 
-## Calibration
+```python
+from greyscope.inference import detect
 
-`calibration.json` contains the thresholds that turn the 0–1 score into labels, including one threshold
-per language. The binary threshold is set so that at most 1% of human text is wrongly flagged as AI.
-We measure that 1% on text written by non-native English speakers, because detectors produce the most
-false positives on this group. Lower the threshold if you need more recall and can accept more false
-positives.
+result = detect("Paste a paragraph here.")
+```
 
-## Evaluation
+Example output:
 
-### Trilingual test set (ours)
-
-This is our own test set. We report ternary macro-F1, with each detector's thresholds calibrated on our
-validation split.
-
-| Detector | All | en | ja | zh-TW |
-|---|---|---|---|---|
-| **Greyscope v2** | 0.877 | 0.875 | 0.872 | 0.880 |
-| Greyscope v1 | 0.820 | 0.818 | 0.786 | 0.855 |
-| editlens-Llama-3.2-3B | 0.717 | 0.690 | 0.679 | 0.763 |
-
-### RAID
-
-[RAID](https://raid-bench.xyz/) is an independent benchmark, and we scored its labelled 10,000-row
-`extra` split. The baselines are our measurements too: EditLens releases per-row scores for these
-detectors, and we computed AUROC and TPR from those columns with the same harness. Neither EditLens nor
-Pangram published AUROC on RAID themselves.
-
-| Detector | AUROC | TPR@1%FPR |
-|---|---|---|
-| **Greyscope v2** | 0.995 | 0.944 |
-| Greyscope v1 | 0.991 | 0.935 |
-| editlens-Llama-3.2-3B | 0.996 | 0.959 |
-| editlens-roberta-large | 0.960 | not reported |
-| Pangram v3.2 (closed-source) | 0.999 | not reported |
-
-### C-ReD (Simplified Chinese)
-
-C-ReD is a Simplified-Chinese benchmark that reports AUROC per domain. The baselines are the published
-numbers from [its paper](https://arxiv.org/abs/2604.11796), measured on the full benchmark, while we
-scored Greyscope on a balanced 4,025-row sample of it.
-
-| Detector | Film | Composition | Q&A | News | Paper |
-|---|---|---|---|---|---|
-| **Greyscope v2** | 1.000 | 0.999 | 1.000 | 1.000 | 0.999 |
-| LAPD | 0.886 | 0.953 | 0.973 | 0.941 | 0.915 |
-| ReMoDetect | 0.973 | 0.873 | 0.976 | 0.865 | 0.913 |
-| ImBD | 0.876 | 0.914 | 0.901 | 0.795 | 0.806 |
-| Fast-DetectGPT | 0.700 | 0.895 | 0.839 | 0.763 | 0.713 |
-
-### Paraphrased AI text
-
-Paraphrasing is a common way to evade detection. We rewrote AI text with a paraphraser held out of
-training and scored it against human text (1,793 rows across all three languages). We ran editlens-Llama
-on the same rows; note it only trained on English.
-
-| Detector | AUROC | TPR@1%FPR |
-|---|---|---|
-| **Greyscope v2** | 0.998 | 0.984 |
-| editlens-Llama-3.2-3B | 0.939 | 0.423 |
-
-Taken together: v2 is the best open detector for Japanese, Traditional Chinese, text from current
-(2026) AI models, and AI text paraphrased to dodge detection. At telling human from AI in English, it
-ties the best open detector. Its one weak spot is English text that AI only *edited* rather than wrote:
-v1, trained on 2.5× more English, is still better there (0.924 vs 0.895 on
-[EditLens](https://arxiv.org/abs/2510.03154)'s test sets).
-
-## Limitations
-
-- The model is meant to flag text that is likely AI-written or AI-edited. You can choose your own
-  threshold on the score.
-- It is least accurate on text with only light AI editing, and on text from domains it never saw.
-- Its training labels were measured by a machine (embedding cosine distance), not written by human
-  annotators.
-- It is not a replacement for human judgment. Do not use its output as the only evidence in important
-  decisions, such as academic integrity cases or hiring.
-
-## Training
-
-We trained it in a single bf16 LoRA run (r=32) on Qwen3.5-4B-Base, using a 4-bucket CORN ordinal head, a
-MELD ranking loss, and a joint language×bucket sampler. The run took about 4.5 hours on one A100-40GB.
-
-The trilingual dataset has about 62k training rows. Every human text comes from a permissively licensed
-source, and 11 generator families rewrote each one in full and edited it at varying strengths. We held
-some generators and paraphrasers out for evaluation. The recipe and pipeline are in the
-[repository](https://github.com/yaoandy107/greyscope).
-
-## Citation
-
-English graded evaluation during development used the EditLens benchmark:
-
-```bibtex
-@article{Thai2025EditLens,
-  title   = {EditLens: Quantifying the Extent of AI Editing in Text},
-  author  = {Thai, Katherine and Emi, Bradley and Masrour, Elyas and Iyyer, Mohit},
-  journal = {arXiv preprint arXiv:2510.03154},
-  year    = {2025}
+```json
+{
+  "label": "AI-edited",
+  "ai_involvement": 0.46,
+  "bucket_probs": {"none": 0.18, "light": 0.44, "moderate": 0.31, "heavy": 0.07}
 }
 ```
 
-## Acknowledgements
+`ai_involvement` describes the estimated degree of AI involvement; it is not a probability that the
+author cheated. `bucket_probs` are the model's probabilities for its four training levels. Use
+`--mode binary` if you need a `human` / `AI` label.
 
-- [Open Pangram](https://www.pangram.com/blog/introducing-open-pangram) — the EditLens paper, dataset (used here for evaluation), and open-source code.
-- [Modal](https://modal.com) — training ran on their free monthly compute credits.
-- [Unsloth](https://unsloth.ai) — efficient LoRA fine-tuning.
+Use Greyscope's calibrated decoder rather than a stock Transformers classification pipeline. The
+three model logits are CORN conditional logits, not class probabilities.
+
+## Mac performance
+
+Measured on an M1 Pro with 32 GB unified memory. Quality uses a fixed 180-row trilingual sample.
+
+| Build | Peak memory | 512 tokens | Macro-F1 | AUROC |
+|---|---:|---:|---:|---:|
+| MLX Q4 | 3.0 GB | 2.43 s | 0.842 | 0.961 |
+
+Use MLX Q4 on Apple Silicon.
+
+## Evaluations
+
+### APT-Eval
+
+Uses 3,000 of 14,950 rows: all 300 human passages and a stratified sample of 2,700 polished
+passages. Spearman measures whether the score tracks editing amount; higher is better.
+
+| Model | Spearman |
+|---|---:|
+| **Greyscope v2** | 0.636 |
+| [Greyscope v1](https://huggingface.co/yaoandy107/greyscope-qwen3.5-4b) | **0.645** |
+| [EditLens Llama-3.2-3B](https://huggingface.co/pangram/editlens_Llama-3.2-3B) | 0.601 |
+| [MELD](https://huggingface.co/anon-review-meld-2026/meld) | — |
+| Desklib v1.01 | — |
+
+MELD and Desklib were not evaluated on APT-Eval.
+
+### Beemo
+
+Uses a 2,997-row sample from the larger Beemo dataset: 333 source documents with all nine variants.
+AUROC tests generated and edited text; higher is better.
+
+| Model | AUROC |
+|---|---:|
+| **Greyscope v2** | 0.819 |
+| [Greyscope v1](https://huggingface.co/yaoandy107/greyscope-qwen3.5-4b) | **0.840** |
+| [MELD](https://huggingface.co/anon-review-meld-2026/meld) | 0.827 |
+| [EditLens Llama-3.2-3B](https://huggingface.co/pangram/editlens_Llama-3.2-3B) | 0.817 |
+| Desklib v1.01 | 0.801 |
+
+### RAID extra
+
+Uses 4,968 rows from RAID `extra`: code, Czech, and German with all 11 attacks. This is an
+out-of-domain robustness check, not a supported-language benchmark.
+
+| Model | AUROC | TPR @ 1% FPR |
+|---|---:|---:|
+| **Greyscope v2** | **0.771** | 0.122 |
+| [MELD](https://huggingface.co/anon-review-meld-2026/meld) | (0.866*) | (0.294*) |
+| [Binoculars](https://github.com/ahans30/Binoculars) | 0.769 | **0.295** |
+| [Desklib v1.01](https://huggingface.co/desklib/ai-text-detector-v1.01) | (0.752*) | (0.229*) |
+| [Greyscope v1](https://huggingface.co/yaoandy107/greyscope-qwen3.5-4b) | 0.720 | 0.130 |
+| [EditLens Llama-3.2-3B](https://huggingface.co/pangram/editlens_Llama-3.2-3B) | 0.713 | 0.266 |
+
+*MELD and Desklib trained on RAID.
+
+Choose v2 for graded scores under Apache-2.0, Apple Silicon support, or Japanese and Traditional
+Chinese. For English-only binary detection, compare MELD on your data. V1 remains slightly stronger
+on APT-Eval and Beemo here, but its license is non-commercial.
+
+Reproduction details and saved predictions are in
+[`benchmarks/`](https://github.com/yaoandy107/greyscope/tree/main/benchmarks).
+
+## Thresholds and calibration
+
+At v2's bundled binary threshold, 13.2% of Beemo human passages were flagged. AUROC does not use
+that threshold. Recalibrate it on data from your users before using the binary label in a product.
+
+## Limitations
+
+- Light AI editing is harder to detect than fully generated text.
+- Results change with text length, subject, generator, language, and rewriting method.
+- The model reads at most 2,048 tokens from each passage.
+- Chinese training data is Traditional Chinese; do not assume the same quality on Simplified Chinese.
+- Training edit-strength labels came from embedding distance rather than human annotation.
+- Do not use this model as the sole evidence in academic, employment, or disciplinary decisions.
+
+## Training and license
+
+Greyscope v2 is a Qwen3.5-4B LoRA with a four-level CORN ordinal head and a ranking loss. It was
+trained on English, Japanese, and Traditional-Chinese text. No EditLens data was used for training.
+
+The weights are Apache-2.0 and the code is MIT. Source texts and the generated training dataset are
+not redistributed with the weights. The complete recipe is in the
+[repository](https://github.com/yaoandy107/greyscope).

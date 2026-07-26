@@ -1,0 +1,13 @@
+{
+  "model_id": "editlens-llama-3.2-3b",
+  "model_source": "pangram/editlens_Llama-3.2-3B",
+  "model_revision": "b5f8044f631f5b455eafbcb569dcf175f2b0726d",
+  "adapter": "editlens-llama",
+  "max_length": 2048,
+  "benchmark": "beemo",
+  "snapshot_rows_sha256": "5839b0898065c89f2da6f1c36e52abfdc92d3e674dc4d89fc1c93c6bce26fd06",
+  "snapshot_texts_sha256": "7dc812c4babe7f4d15a0ad3bcc844a97775fce741cfe833a536a6e84338445cb",
+  "snapshot_records_sha256": "9b8e609addac70098adc7086fba70c3c28f24a7d9c7c1258844f428f6ca56726",
+  "base_source": "meta-llama/Llama-3.2-3B",
+  "base_revision": "13afe5124825b4f3751f836b40dafda64c1ed062"
+}

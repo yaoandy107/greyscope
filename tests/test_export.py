@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from greyscope.eval import StandaloneScorer, _predict_bucket_logits
-from greyscope.export import _quantization_config, _scalar_decode
+from greyscope.export import _quantization_config, _scalar_decode, quantization_equivalence
 
 
 def test_scalar_decode_seqcls_is_softmax_expectation():
@@ -51,6 +51,31 @@ def test_quantization_config_int4_tile_packed_excludes_score():
 def test_quantization_config_rejects_unknown_precision():
     with pytest.raises(ValueError, match="int4.*fp8"):
         _quantization_config("gguf")
+
+
+def test_quantization_equivalence_reports_release_metrics():
+    metrics = quantization_equivalence(
+        [0.0, 0.25, 0.5, 1.0],
+        [0.01, 0.24, 0.51, 0.99],
+        [0, 1, 2, 3],
+        [0, 1, 2, 3],
+    )
+    assert metrics["n"] == 4
+    assert metrics["score_pearson"] > 0.99
+    assert metrics["score_spearman"] == 1.0
+    assert metrics["score_mae"] == pytest.approx(0.01)
+    assert metrics["score_maxdiff"] == pytest.approx(0.01)
+    assert metrics["bucket_agreement"] == 1.0
+
+
+def test_quantization_equivalence_rejects_mismatched_rows():
+    with pytest.raises(ValueError, match="matching shapes"):
+        quantization_equivalence([0.1], [0.1, 0.2], [0], [0, 1])
+
+
+def test_quantization_equivalence_rejects_score_bucket_length_mismatch():
+    with pytest.raises(ValueError, match="matching shapes"):
+        quantization_equivalence([0.1, 0.2], [0.1, 0.2], [0], [0])
 
 
 def test_standalone_scorer_matches_trainer_predict_interface(monkeypatch):

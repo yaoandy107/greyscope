@@ -46,7 +46,8 @@ class _Model:
 
 def _detect(monkeypatch, bucket_logits, **kw):
     logits = torch.tensor([bucket_logits], dtype=torch.bfloat16)  # bf16, like the shipped model
-    monkeypatch.setattr(inf, "_load", lambda: (_Model(logits), _Tok(), CALIB))
+    monkeypatch.setattr(inf, "_load", lambda *_args: (_Model(logits), _Tok(), CALIB))
+    kw.setdefault("model", "bf16")
     return inf.detect("A sample passage to classify.", **kw)
 
 
@@ -85,7 +86,7 @@ def test_binary_extremes(monkeypatch):
 
 
 def test_modes_diverge_in_grey_zone(monkeypatch):
-    # A lightly-edited score (between h_thresh and the accusation-safe binary
+    # A lightly-edited score (between h_thresh and the calibrated binary
     # threshold) is "AI-edited" in ternary but stays "human" in binary — the
     # exact case the two modes exist to disambiguate.
     logits = [math.log(0.30), math.log(0.45), math.log(0.20), math.log(0.05)]
@@ -116,7 +117,8 @@ CORN_CALIB = {
 
 def _detect_corn(monkeypatch, cond_logits, **kw):
     logits = torch.tensor([cond_logits], dtype=torch.bfloat16)  # K−1 conditional logits
-    monkeypatch.setattr(inf, "_load", lambda: (_Model(logits), _Tok(), CORN_CALIB))
+    monkeypatch.setattr(inf, "_load", lambda *_args: (_Model(logits), _Tok(), CORN_CALIB))
+    kw.setdefault("model", "bf16")
     return inf.detect("A sample passage to classify.", **kw)
 
 
@@ -129,3 +131,76 @@ def test_corn_head_decodes_extremes(monkeypatch):
     assert list(hi["bucket_probs"]) == CORN_CALIB["bucket_descriptions"]
     assert abs(sum(hi["bucket_probs"].values()) - 1.0) < 0.02
     json.dumps(hi)
+
+
+def test_resolve_model_aliases():
+    assert inf.resolve_model("bf16") == inf.BF16_MODEL
+    assert inf.resolve_model("int4") == inf.INT4_MODEL
+    assert inf.resolve_model("org/custom") == "org/custom"
+
+
+def test_transformers_auto_alias_is_reference_bf16():
+    assert inf.resolve_model() == inf.BF16_MODEL
+
+
+def test_auto_uses_mlx_q4_on_apple_silicon(monkeypatch):
+    import greyscope.mlx_inference as mlx_inf
+
+    seen = {}
+    monkeypatch.setattr(inf, "_is_apple_silicon", lambda: True)
+    monkeypatch.setattr(inf, "_mlx_available", lambda: True)
+    monkeypatch.setattr(
+        mlx_inf,
+        "detect_mlx",
+        lambda text, mode, model: seen.update(text=text, mode=mode, model=model) or {"ok": True},
+    )
+
+    assert inf.detect("Text") == {"ok": True}
+    assert seen == {"text": "Text", "mode": "ternary", "model": "q4"}
+
+
+def test_auto_falls_back_to_transformers_without_mlx(monkeypatch):
+    logits = torch.tensor([[20.0, 0.0, 0.0, 0.0]], dtype=torch.bfloat16)
+    seen = {}
+
+    monkeypatch.setattr(inf, "_is_apple_silicon", lambda: True)
+    monkeypatch.setattr(inf, "_mlx_available", lambda: False)
+
+    def fake_load(source, device):
+        seen.update(source=source, device=device)
+        return _Model(logits), _Tok(), CALIB
+
+    monkeypatch.setattr(inf, "_load", fake_load)
+    inf.detect("Text")
+    assert seen == {"source": inf.BF16_MODEL, "device": "auto"}
+
+
+def test_local_mlx_artifact_uses_mlx_backend(tmp_path, monkeypatch):
+    import greyscope.mlx_inference as mlx_inf
+
+    model_dir = tmp_path / "native"
+    model_dir.mkdir()
+    (model_dir / "config.json").write_text('{"model_file": "mlx_model.py"}')
+    seen = {}
+    monkeypatch.setattr(
+        mlx_inf,
+        "detect_mlx",
+        lambda text, mode, model: seen.update(text=text, mode=mode, model=model) or {"ok": True},
+    )
+
+    assert inf.detect("Text", model=str(model_dir)) == {"ok": True}
+    assert seen["model"] == str(model_dir)
+
+
+def test_detect_passes_model_and_device_to_loader(monkeypatch):
+    logits = torch.tensor([[20.0, 0.0, 0.0, 0.0]], dtype=torch.bfloat16)
+    seen = {}
+
+    def fake_load(source, device):
+        seen.update(source=source, device=device)
+        return _Model(logits), _Tok(), CALIB
+
+    monkeypatch.setattr(inf, "_load", fake_load)
+    result = inf.detect("Text", model="int4", device="cpu")
+    assert result["label"] == "human"
+    assert seen == {"source": inf.INT4_MODEL, "device": "cpu"}

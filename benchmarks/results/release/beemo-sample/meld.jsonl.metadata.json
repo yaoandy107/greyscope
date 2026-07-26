@@ -1,0 +1,13 @@
+{
+  "model_id": "meld",
+  "model_source": "anon-review-meld-2026/meld",
+  "model_revision": "3383dc2f02abacb45a7dd28568e82e0836ec740e",
+  "adapter": "meld",
+  "max_length": 1024,
+  "benchmark": "beemo",
+  "snapshot_rows_sha256": "5839b0898065c89f2da6f1c36e52abfdc92d3e674dc4d89fc1c93c6bce26fd06",
+  "snapshot_texts_sha256": "7dc812c4babe7f4d15a0ad3bcc844a97775fce741cfe833a536a6e84338445cb",
+  "snapshot_records_sha256": "9b8e609addac70098adc7086fba70c3c28f24a7d9c7c1258844f428f6ca56726",
+  "base_source": "jhu-clsp/ettin-encoder-400m",
+  "base_revision": "7662476d60abb071a5bd319c9f3074f3072c062d"
+}

@@ -1,0 +1,42 @@
+{
+  "source_rows": 2039100,
+  "sample_rows": 4992,
+  "source_documents": 208,
+  "base_generations": 416,
+  "domains": {
+    "code": 1680,
+    "czech": 1656,
+    "german": 1656
+  },
+  "attacks": {
+    "alternative_spelling": 416,
+    "article_deletion": 416,
+    "homoglyph": 416,
+    "insert_paragraphs": 416,
+    "none": 416,
+    "number": 416,
+    "paraphrase": 416,
+    "perplexity_misspelling": 416,
+    "synonym": 416,
+    "upper_lower": 416,
+    "whitespace": 416,
+    "zero_width_space": 416
+  },
+  "labels": {
+    "human": 2496,
+    "ai": 2496
+  },
+  "ai_models": {
+    "chatgpt": 19,
+    "cohere": 18,
+    "cohere-chat": 19,
+    "gpt2": 19,
+    "gpt3": 19,
+    "gpt4": 19,
+    "llama-chat": 19,
+    "mistral": 19,
+    "mistral-chat": 19,
+    "mpt": 19,
+    "mpt-chat": 19
+  }
+}

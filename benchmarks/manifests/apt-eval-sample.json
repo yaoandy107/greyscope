@@ -1,0 +1,40 @@
+{
+  "benchmark": "apt-eval",
+  "source": "smksaha/apt-eval",
+  "revision": "1a183126ec24791c14c3a3254e8cdb5c58935d27",
+  "n": 3000,
+  "rows_sha256": "0c66e45de34bd1f8154fe483ba57e0351ab0bedeb6b62a1c7cbbe0c6adfd59ec",
+  "texts_sha256": "e9f75435b022995dbce58ef9977dc31cb10a9a73de198d3a3a9d4fe697e6e642",
+  "records_sha256": "a8b33c124b58611e4c4d9e7f692a3441c36ccce5a5ce8bfcec71d6bbf361b8e5",
+  "columns": [
+    "row_id",
+    "text_sha256",
+    "benchmark",
+    "source_id",
+    "variant",
+    "text",
+    "language",
+    "label_binary",
+    "label_ternary",
+    "edit_target",
+    "domain",
+    "generator"
+  ],
+  "label_mapping": {
+    "label_binary": {
+      "0": "human",
+      "1": "AI-involved"
+    },
+    "label_ternary": {
+      "0": "human",
+      "1": "AI-generated",
+      "2": "AI-edited"
+    }
+  },
+  "sampling": {
+    "method": "all 300 human rows plus 2700 proportionally stratified polished rows",
+    "parent_n": 14950,
+    "parent_rows_sha256": "fc9327884b4e920921b8003177fa98696264bab1008d93137f5f7311325c9d63",
+    "parent_records_sha256": "480b86a93faafbdd3bf59b963c4150cba45b7d3718e2108e6b8c063793090f19"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "method": "percentile bootstrap",
+  "unit": "source",
+  "samples": 1000,
+  "seed": 20260722,
+  "confidence": 0.95,
+  "metrics": {
+    "binary.auroc": {
+      "estimate": 0.840261432603775,
+      "low": 0.815634187115043,
+      "high": 0.8621957824942059,
+      "successful_samples": 1000
+    },
+    "binary.tpr@fpr1": {
+      "estimate": 0.042042042042042045,
+      "low": 0.017267267267267267,
+      "high": 0.2616929429429429,
+      "successful_samples": 1000
+    },
+    "binary.tpr@fpr5": {
+      "estimate": 0.43843843843843844,
+      "low": 0.28072447447447446,
+      "high": 0.517652027027027,
+      "successful_samples": 1000
+    },
+    "binary.shipped_threshold_fpr": {
+      "estimate": 0.16816816816816818,
+      "low": 0.12912912912912913,
+      "high": 0.21021021021021022,
+      "successful_samples": 1000
+    },
+    "binary.shipped_threshold_tpr": {
+      "estimate": 0.7188438438438438,
+      "low": 0.6835585585585585,
+      "high": 0.7496433933933934,
+      "successful_samples": 1000
+    },
+    "ternary.macro_f1": {
+      "estimate": 0.47600341677450597,
+      "low": 0.4542193142935183,
+      "high": 0.4982963837843703,
+      "successful_samples": 1000
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "cutoff": "2026-07-24",
+  "models": [
+    {
+      "id": "greyscope-v2-bf16",
+      "source": "yaoandy107/greyscope-v2-qwen3.5-4b",
+      "revision": "1fdb7cf620d25527524fb99830a850b6e7a5b192",
+      "kind": "graded",
+      "adapter": "greyscope",
+      "head_type": "corn",
+      "normalize_unicode": true,
+      "batch_size": 4,
+      "max_length": 2048,
+      "languages": ["en", "ja", "zh-TW"],
+      "role": "release"
+    },
+    {
+      "id": "greyscope-v1-bf16",
+      "source": "yaoandy107/greyscope-qwen3.5-4b",
+      "revision": "bb25d4158a6795c6fce225156c0e330084ffb665",
+      "kind": "graded",
+      "adapter": "greyscope",
+      "head_type": "seqcls",
+      "normalize_unicode": false,
+      "batch_size": 4,
+      "max_length": 2048,
+      "languages": ["en"],
+      "role": "previous-release",
+      "trained_on_benchmarks": ["editlens"]
+    },
+    {
+      "id": "editlens-llama-3.2-3b",
+      "source": "pangram/editlens_Llama-3.2-3B",
+      "revision": "b5f8044f631f5b455eafbcb569dcf175f2b0726d",
+      "base_source": "meta-llama/Llama-3.2-3B",
+      "base_revision": "13afe5124825b4f3751f836b40dafda64c1ed062",
+      "kind": "graded",
+      "adapter": "editlens-llama",
+      "batch_size": 32,
+      "max_length": 2048,
+      "languages": ["en"],
+      "role": "direct-alternative"
+    },
+    {
+      "id": "desklib-v1.01",
+      "source": "desklib/ai-text-detector-v1.01",
+      "revision": "5fdea974cd4287c61674951ec78803aa274e2fb7",
+      "kind": "binary",
+      "adapter": "desklib",
+      "batch_size": 32,
+      "max_length": 512,
+      "ai_label_id": 0,
+      "languages": ["en"],
+      "role": "user-alternative",
+      "trained_on_benchmarks": ["raid"]
+    },
+    {
+      "id": "meld",
+      "source": "anon-review-meld-2026/meld",
+      "revision": "3383dc2f02abacb45a7dd28568e82e0836ec740e",
+      "base_source": "jhu-clsp/ettin-encoder-400m",
+      "base_revision": "7662476d60abb071a5bd319c9f3074f3072c062d",
+      "kind": "binary",
+      "adapter": "meld",
+      "batch_size": 16,
+      "max_length": 1024,
+      "languages": ["en"],
+      "role": "direct-alternative",
+      "trained_on_benchmarks": ["raid"]
+    },
+    {
+      "id": "binoculars",
+      "source": "https://github.com/ahans30/Binoculars",
+      "revision": "c8ae2f90d50ee696418bc71d8d9e5020e5f9d7b8",
+      "kind": "binary",
+      "adapter": "binoculars",
+      "max_length": 512,
+      "observer_source": "tiiuae/falcon-7b",
+      "observer_revision": "ec89142b67d748a1865ea4451372db8313ada0d8",
+      "performer_source": "tiiuae/falcon-7b-instruct",
+      "performer_revision": "8782b5c5d8c9290412416618f36a133653e85285",
+      "batch_size": 1,
+      "languages": ["en"],
+      "role": "diagnostic-reference"
+    }
+  ],
+  "benchmarks": [
+    {"id": "editlens", "task": "graded", "languages": ["en"], "tier": "provenance-only"},
+    {"id": "apt-eval", "task": "graded", "languages": ["en"], "tier": "release"},
+    {"id": "beemo", "task": "graded", "languages": ["en"], "tier": "release"},
+    {"id": "raid", "task": "binary", "languages": ["multilingual"], "tier": "release"}
+  ]
+}

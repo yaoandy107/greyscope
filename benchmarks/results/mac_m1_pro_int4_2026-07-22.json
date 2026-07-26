@@ -1,0 +1,20 @@
+{
+  "hardware": "Apple M1 Pro, 10-core CPU, 32 GB unified memory",
+  "os": "macOS 26.5.1",
+  "device": "mps",
+  "dtype": "torch.bfloat16",
+  "artifact": "outputs/export_production-r2/int4",
+  "torch": "2.12.0",
+  "batch_size": 1,
+  "runs": 3,
+  "warmup": 1,
+  "parameters_billions": 4.205758976,
+  "peak_mps_gb": 4.6423797607421875,
+  "load_seconds": 11.15363616636023,
+  "latency": [
+    {"tokens": 128, "median_ms": 4278.089041821659, "tokens_per_second": 29.919900859636186},
+    {"tokens": 512, "median_ms": 16816.830040886998, "tokens_per_second": 30.44569034444465},
+    {"tokens": 1024, "median_ms": 34217.79383299872, "tokens_per_second": 29.92595036949699}
+  ],
+  "verdict": "fails_mac_latency_gate"
+}

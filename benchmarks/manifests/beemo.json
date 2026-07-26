@@ -1,0 +1,34 @@
+{
+  "benchmark": "beemo",
+  "source": "toloka/beemo",
+  "revision": "9c014107fe9b85c4c784c1ce3a43b0b7b0a6d162",
+  "n": 19683,
+  "rows_sha256": "8a7161e9f4babeea1f424d56db1fe2279e430063325de25e621daab88361bc09",
+  "texts_sha256": "3023d918fe95937491d0faedce5ee5b4bff71a12c6fdbe840f708a894edf0944",
+  "records_sha256": "2c949f1ad10c1a4618cb27944ef7b378ff213d37d5de901ec599fa5dd6af1764",
+  "columns": [
+    "row_id",
+    "text_sha256",
+    "benchmark",
+    "source_id",
+    "variant",
+    "text",
+    "language",
+    "label_binary",
+    "label_ternary",
+    "edit_target",
+    "domain",
+    "generator"
+  ],
+  "label_mapping": {
+    "label_binary": {
+      "0": "human",
+      "1": "AI-involved"
+    },
+    "label_ternary": {
+      "0": "human",
+      "1": "AI-generated",
+      "2": "AI-edited"
+    }
+  }
+}

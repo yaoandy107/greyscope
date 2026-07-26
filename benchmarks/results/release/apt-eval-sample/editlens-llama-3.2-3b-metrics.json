@@ -1,0 +1,129 @@
+{
+  "model": {
+    "id": "editlens-llama-3.2-3b",
+    "source": "pangram/editlens_Llama-3.2-3B",
+    "revision": "b5f8044f631f5b455eafbcb569dcf175f2b0726d",
+    "base_source": "meta-llama/Llama-3.2-3B",
+    "base_revision": "13afe5124825b4f3751f836b40dafda64c1ed062",
+    "kind": "graded",
+    "adapter": "editlens-llama",
+    "max_length": 2048,
+    "languages": [
+      "en"
+    ],
+    "role": "direct-alternative"
+  },
+  "snapshot": {
+    "benchmark": "apt-eval",
+    "source": "smksaha/apt-eval",
+    "revision": "1a183126ec24791c14c3a3254e8cdb5c58935d27",
+    "n": 3000,
+    "rows_sha256": "0c66e45de34bd1f8154fe483ba57e0351ab0bedeb6b62a1c7cbbe0c6adfd59ec",
+    "texts_sha256": "e9f75435b022995dbce58ef9977dc31cb10a9a73de198d3a3a9d4fe697e6e642",
+    "records_sha256": "a8b33c124b58611e4c4d9e7f692a3441c36ccce5a5ce8bfcec71d6bbf361b8e5",
+    "columns": [
+      "row_id",
+      "text_sha256",
+      "benchmark",
+      "source_id",
+      "variant",
+      "text",
+      "language",
+      "label_binary",
+      "label_ternary",
+      "edit_target",
+      "domain",
+      "generator"
+    ],
+    "label_mapping": {
+      "label_binary": {
+        "0": "human",
+        "1": "AI-involved"
+      },
+      "label_ternary": {
+        "0": "human",
+        "1": "AI-generated",
+        "2": "AI-edited"
+      }
+    },
+    "sampling": {
+      "method": "all 300 human rows plus 2700 proportionally stratified polished rows",
+      "parent_n": 14950,
+      "parent_rows_sha256": "fc9327884b4e920921b8003177fa98696264bab1008d93137f5f7311325c9d63",
+      "parent_records_sha256": "480b86a93faafbdd3bf59b963c4150cba45b7d3718e2108e6b8c063793090f19"
+    }
+  },
+  "load_seconds": 20.678336121,
+  "elapsed_seconds": 199.177664132,
+  "rows_per_second": 16.80678596064589,
+  "metrics": {
+    "n": 3000,
+    "edit_correlation": {
+      "pearson": 0.504304485155456,
+      "spearman": 0.6009179436813046,
+      "n": 2034
+    },
+    "by_variant": {
+      "human": {
+        "mean": 0.06125212338263666,
+        "median": 0.021256946131742338,
+        "n": 300
+      },
+      "polished:degree-based:extreme_minor": {
+        "mean": 0.27850141872820455,
+        "median": 0.23404272965219203,
+        "n": 254
+      },
+      "polished:degree-based:major": {
+        "mean": 0.7065056689928686,
+        "median": 0.7462416409936588,
+        "n": 219
+      },
+      "polished:degree-based:minor": {
+        "mean": 0.37079759295213227,
+        "median": 0.36507147266065787,
+        "n": 249
+      },
+      "polished:degree-based:slight_major": {
+        "mean": 0.5584972806163665,
+        "median": 0.5587503928691568,
+        "n": 244
+      },
+      "polished:percentage-based:1.0": {
+        "mean": 0.16060271974456475,
+        "median": 0.10077233308986852,
+        "n": 253
+      },
+      "polished:percentage-based:10.0": {
+        "mean": 0.2545006181322048,
+        "median": 0.22338644644349126,
+        "n": 249
+      },
+      "polished:percentage-based:20.0": {
+        "mean": 0.34637993726292005,
+        "median": 0.33848238488102417,
+        "n": 247
+      },
+      "polished:percentage-based:35.0": {
+        "mean": 0.3776705671664513,
+        "median": 0.3678474879744249,
+        "n": 251
+      },
+      "polished:percentage-based:5.0": {
+        "mean": 0.1973090341254651,
+        "median": 0.1301972101344107,
+        "n": 248
+      },
+      "polished:percentage-based:50.0": {
+        "mean": 0.42861535473113554,
+        "median": 0.4201443439912733,
+        "n": 243
+      },
+      "polished:percentage-based:75.0": {
+        "mean": 0.4609012587910971,
+        "median": 0.48404498920011785,
+        "n": 243
+      }
+    }
+  }
+}

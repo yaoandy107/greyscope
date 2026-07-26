@@ -1,0 +1,11 @@
+{
+  "model_id": "greyscope-v1-bf16",
+  "model_revision": "bb25d4158a6795c6fce225156c0e330084ffb665",
+  "gpu": "L4",
+  "rows": 4992,
+  "load_seconds": 25.001549364,
+  "score_seconds": 1898.84839929,
+  "rows_per_second": 2.6289618496487464,
+  "score_min": 0.024233791109984828,
+  "score_max": 0.9997831254029007
+}

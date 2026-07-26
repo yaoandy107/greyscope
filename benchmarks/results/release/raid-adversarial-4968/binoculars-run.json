@@ -1,0 +1,11 @@
+{
+  "model_id": "binoculars",
+  "model_revision": "c8ae2f90d50ee696418bc71d8d9e5020e5f9d7b8",
+  "gpu": "A100-80GB",
+  "rows": 4968,
+  "load_seconds": 33.681708436,
+  "score_seconds": 1286.340359216,
+  "rows_per_second": 3.86211935620826,
+  "score_min": -1.5546875,
+  "score_max": -0.37109375
+}

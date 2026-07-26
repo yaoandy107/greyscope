@@ -1,0 +1,2383 @@
+{
+  "artifact": "outputs/export_production-r2/int4",
+  "backend": "torch-mps-bfloat16",
+  "test_csv": "data/v2/splits/test.csv",
+  "selection": {
+    "method": "deterministic stratified language x text_type",
+    "per_group": 20,
+    "n": 180
+  },
+  "elapsed_seconds": 2481.978503958001,
+  "metrics": {
+    "accuracy": 0.32222222222222224,
+    "macro_f1": 0.17304037751158372,
+    "f1_human": 0.4892703862660944,
+    "f1_ai_generated": 0.0,
+    "f1_ai_edited": 0.029850746268656716,
+    "confusion_matrix": [
+      [
+        57,
+        0,
+        3
+      ],
+      [
+        57,
+        0,
+        3
+      ],
+      [
+        59,
+        0,
+        1
+      ]
+    ]
+  },
+  "detection": {
+    "auroc": 0.4422222222222222,
+    "n": 180,
+    "tpr@fpr1": 0.008333333333333333,
+    "tpr@fpr5": 0.03333333333333333
+  },
+  "rows": [
+    {
+      "text_id": "en/amazon-reviews-en/1452176957/AF3HNAQK2URNEBAZQCRZGSPBU5FQ/ai_edited/google_gemma-4-31b-it/plain/en-polish-9",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06027684240461953,
+      "scaled_score": 0.06018597793921393,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.109375,
+        -0.044189453125
+      ]
+    },
+    {
+      "text_id": "en/amazon-reviews-en/1561588482/AFW2PDT3AMT4X3PYQG7FJZH5FXFA/ai_edited/qwen_qwen3.7-plus/plain/en-simplify-18",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06062842043542094,
+      "scaled_score": 0.06053760309906078,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.0654296875
+      ]
+    },
+    {
+      "text_id": "en/amazon-reviews-en/B07KTJRCPG/AGMUU2ZAK7Z4L6HLCQ3YAKDBAJJQ/ai_edited/x-ai_grok-4.3/humanizer/en-rewrite-18",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06068942185193644,
+      "scaled_score": 0.06059861269281797,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.043212890625
+      ]
+    },
+    {
+      "text_id": "en/arxiv-abstracts/0704.0481/ai_edited/google_gemini-3.5-flash/plain/en-tone-9",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06065522967479311,
+      "scaled_score": 0.06056441593221228,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.0556640625
+      ]
+    },
+    {
+      "text_id": "en/arxiv-abstracts/0704.1769/ai_edited/deepseek_deepseek-v4-flash/plain/en-rewrite-9",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.05986003431646883,
+      "scaled_score": 0.05976911397792666,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.109375,
+        -0.047607421875
+      ]
+    },
+    {
+      "text_id": "en/arxiv-abstracts/0704.1962/ai_edited/moonshotai_kimi-k2.6/plain/en-restructure-9",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06076554198834593,
+      "scaled_score": 0.06067474303313401,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1015625,
+        -0.050537109375
+      ]
+    },
+    {
+      "text_id": "en/gutenberg/2275/ai_edited/openai_gpt-5.6-luna/humanizer/en-condense-18",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.061168148417419264,
+      "scaled_score": 0.06107740343161109,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.1015625,
+        -0.05419921875
+      ]
+    },
+    {
+      "text_id": "en/gutenberg/2685/ai_edited/google_gemini-3.5-flash/plain/en-restructure-18",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06067400055327133,
+      "scaled_score": 0.06058318932692732,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.048828125
+      ]
+    },
+    {
+      "text_id": "en/gutenberg/2912/ai_edited/tencent_hy3/humanizer/en-rewrite-9",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06024621096463686,
+      "scaled_score": 0.06015534239308582,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.109375,
+        -0.055419921875
+      ]
+    },
+    {
+      "text_id": "en/gutenberg/3163/ai_edited/google_gemini-3.5-flash/plain/en-rewrite-18",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06054812787395517,
+      "scaled_score": 0.06045729977437477,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1171875,
+        -0.059814453125
+      ]
+    },
+    {
+      "text_id": "en/gutenberg/3419/ai_edited/tencent_hy3/plain/en-simplify-9",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06076689072689189,
+      "scaled_score": 0.06067609195247841,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1015625,
+        -0.050048828125
+      ]
+    },
+    {
+      "text_id": "en/gutenberg/525/ai_edited/google_gemini-3.1-flash-lite/plain/en-improve-9",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06087813787566987,
+      "scaled_score": 0.060787354013939976,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.125,
+        -0.054443359375
+      ]
+    },
+    {
+      "text_id": "en/gutenberg/583/ai_edited/openai_gpt-5.5/humanizer",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06086351060043058,
+      "scaled_score": 0.06077272477791401,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.09375,
+        -0.050048828125
+      ]
+    },
+    {
+      "text_id": "en/reddit-l2/AskEurope/g468ah/ai_edited/moonshotai_kimi-k2.6/plain/en-tone-9",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06077565792189135,
+      "scaled_score": 0.06068486032272062,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1015625,
+        -0.046875
+      ]
+    },
+    {
+      "text_id": "en/stackexchange/5918e8432364edbb/ai_edited/tencent_hy3/humanizer/en-condense-18",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06016233315873873,
+      "scaled_score": 0.060071453343365326,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1171875,
+        -0.05126953125
+      ]
+    },
+    {
+      "text_id": "en/stackexchange/7e8a1ad697b636d8/ai_edited/deepseek_deepseek-v4-flash/plain/en-polish-9",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.061149141580366044,
+      "scaled_score": 0.0610583940466908,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.1015625,
+        -0.06103515625
+      ]
+    },
+    {
+      "text_id": "en/wikinews-en/127312/ai_edited/google_gemini-3.5-flash/persona_concise/en-simplify-18",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06083502441469754,
+      "scaled_score": 0.06074423477360693,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.09375,
+        -0.060302734375
+      ]
+    },
+    {
+      "text_id": "en/wikinews-en/146876/ai_edited/moonshotai_kimi-k2.6/plain/en-copyedit-9",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.061263991106264466,
+      "scaled_score": 0.06117325896817157,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.09375,
+        -0.0546875
+      ]
+    },
+    {
+      "text_id": "en/wikinews-en/146876/ai_edited/tencent_hy3/plain/en-simplify-9",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06078307682873215,
+      "scaled_score": 0.0606922802240661,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1015625,
+        -0.044189453125
+      ]
+    },
+    {
+      "text_id": "en/wikinews-en/77170/ai_edited/x-ai_grok-4.3/humanizer/en-paraphrase-9",
+      "language": "en",
+      "text_type": "ai_edited",
+      "score": 0.06032966276738962,
+      "scaled_score": 0.060238805382555216,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1015625,
+        -0.059814453125
+      ]
+    },
+    {
+      "text_id": "en/amazon-reviews-en/0241544297/AHV6QCNBJNSGLATP56JAWJ3C4G2A/ai_generated/deepseek_deepseek-v4-flash/persona_casual",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.06077498349856388,
+      "scaled_score": 0.060684185808986685,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1015625,
+        -0.047119140625
+      ]
+    },
+    {
+      "text_id": "en/amazon-reviews-en/1640971866/AHV6QCNBJNSGLATP56JAWJ3C4G2A/ai_generated/openai_gpt-5.5/plain",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.06108414385075688,
+      "scaled_score": 0.06099338760413406,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.109375,
+        -0.049560546875
+      ]
+    },
+    {
+      "text_id": "en/amazon-reviews-en/B0B39H6ZK7/AEIHN6JDLYL2QYCAOCBVEUPHU5EA/ai_generated/openai_gpt-5.5/plain",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.06067735283808882,
+      "scaled_score": 0.06058654206111869,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.047607421875
+      ]
+    },
+    {
+      "text_id": "en/arxiv-abstracts/0704.0878/ai_generated/tencent_hy3/plain",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.060830955643374644,
+      "scaled_score": 0.060740165456865114,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.09375,
+        -0.061767578125
+      ]
+    },
+    {
+      "text_id": "en/arxiv-abstracts/0704.1588/ai_generated/x-ai_grok-4.3/plain",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.0607176737439184,
+      "scaled_score": 0.060626868371966895,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1015625,
+        -0.06787109375
+      ]
+    },
+    {
+      "text_id": "en/arxiv-abstracts/0704.1775/ai_generated/x-ai_grok-4.3/humanizer",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.061588022236192135,
+      "scaled_score": 0.06149733353448181,
+      "prediction": 0,
+      "logits": [
+        -1.859375,
+        -1.1015625,
+        -0.052490234375
+      ]
+    },
+    {
+      "text_id": "en/arxiv-abstracts/0704.2468/ai_generated/google_gemini-3.5-flash/plain",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.0603350200331906,
+      "scaled_score": 0.06024416336649783,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1015625,
+        -0.057861328125
+      ]
+    },
+    {
+      "text_id": "en/fineweb/<urn:uuid:04a14fdb-408c-44ab-ac4d-2b086b8f8428>/ai_generated/google_gemini-3.1-pro-preview/humanizer",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.06018351832653248,
+      "scaled_score": 0.06009264135103144,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1171875,
+        -0.04345703125
+      ]
+    },
+    {
+      "text_id": "en/fineweb/<urn:uuid:5a028c1e-ab46-4051-b404-f89d86d41bd0>/ai_generated/openai_gpt-5.6-sol/humanizer",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.06065657033861533,
+      "scaled_score": 0.06056575677575053,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.05517578125
+      ]
+    },
+    {
+      "text_id": "en/gutenberg/234/ai_generated/deepseek_deepseek-v4-pro/persona_concise",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.06021199144185901,
+      "scaled_score": 0.060121118283179925,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1171875,
+        -0.032958984375
+      ]
+    },
+    {
+      "text_id": "en/reddit-l2/AskEurope/6kty1o/ai_generated/qwen_qwen3.7-plus/persona_casual",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.05984151569655521,
+      "scaled_score": 0.059750592875591486,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.109375,
+        -0.054443359375
+      ]
+    },
+    {
+      "text_id": "en/reddit-l2/AskEurope/hy3kkc/ai_generated/deepseek_deepseek-v4-flash/persona_concise",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.060767565102353704,
+      "scaled_score": 0.06067676641834027,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1015625,
+        -0.0498046875
+      ]
+    },
+    {
+      "text_id": "en/reddit-l2/AskEurope/r30837/ai_generated/moonshotai_kimi-k2.6/plain",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.06066997794355731,
+      "scaled_score": 0.06057916617798235,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.05029296875
+      ]
+    },
+    {
+      "text_id": "en/stackexchange/2c8be32f717ff705/ai_generated/google_gemini-3.1-pro-preview/humanizer",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.06025819615196453,
+      "scaled_score": 0.06016732918702821,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.109375,
+        -0.051025390625
+      ]
+    },
+    {
+      "text_id": "en/stackexchange/66e6fbc940c8993c/ai_generated/anthropic_claude-sonnet-4.6/plain",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.06062305957404535,
+      "scaled_score": 0.06053224151906157,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.0673828125
+      ]
+    },
+    {
+      "text_id": "en/stackexchange/724a11125acb1dd7/ai_generated/anthropic_claude-sonnet-4.6/persona_casual",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.06045107179404063,
+      "scaled_score": 0.06036023068408984,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.09375,
+        -0.050537109375
+      ]
+    },
+    {
+      "text_id": "en/wikinews-en/129614/ai_generated/openai_gpt-5.5/plain",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.06065388902918548,
+      "scaled_score": 0.06056307510689107,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.05615234375
+      ]
+    },
+    {
+      "text_id": "en/wikinews-en/146876/ai_generated/google_gemini-3.1-pro-preview/plain",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.060365829871315474,
+      "scaled_score": 0.06027497733468242,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1015625,
+        -0.046630859375
+      ]
+    },
+    {
+      "text_id": "en/wikinews-en/229379/ai_generated/google_gemini-3.5-flash/persona_casual",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.06116746953855506,
+      "scaled_score": 0.06107672446174315,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.1015625,
+        -0.054443359375
+      ]
+    },
+    {
+      "text_id": "en/wikinews-en/77170/ai_generated/moonshotai_kimi-k2.6/humanizer",
+      "language": "en",
+      "text_type": "ai_generated",
+      "score": 0.06068942185193644,
+      "scaled_score": 0.06059861269281797,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.043212890625
+      ]
+    },
+    {
+      "text_id": "en/amazon-reviews-en/B00094AS9U/AFW2PDT3AMT4X3PYQG7FJZH5FXFA/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.05897494413163531,
+      "scaled_score": 0.05888390514672764,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.2265625,
+        -0.1689453125
+      ]
+    },
+    {
+      "text_id": "en/amazon-reviews-en/B07YS19MW7/AEIHN6JDLYL2QYCAOCBVEUPHU5EA/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.11248400031763008,
+      "scaled_score": 0.11240013422328969,
+      "prediction": 2,
+      "logits": [
+        -0.80859375,
+        -2.484375,
+        -1.1875
+      ]
+    },
+    {
+      "text_id": "en/amazon-reviews-en/B08SY4MMVL/AEIHN6JDLYL2QYCAOCBVEUPHU5EA/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.060343726231056626,
+      "scaled_score": 0.06025287073142994,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1015625,
+        -0.0546875
+      ]
+    },
+    {
+      "text_id": "en/arxiv-abstracts/0704.0306/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.060348414499431874,
+      "scaled_score": 0.060257559628267704,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1015625,
+        -0.052978515625
+      ]
+    },
+    {
+      "text_id": "en/arxiv-abstracts/0704.0784/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.06002561775037699,
+      "scaled_score": 0.05993471960829905,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.09375,
+        -0.056640625
+      ]
+    },
+    {
+      "text_id": "en/arxiv-abstracts/0704.1671/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.061059847035695385,
+      "scaled_score": 0.06096908753208378,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.109375,
+        -0.058349609375
+      ]
+    },
+    {
+      "text_id": "en/fineweb/<urn:uuid:46837b14-b121-489b-96e3-bc3644c56609>/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.06026751889909765,
+      "scaled_score": 0.060176653183875856,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.109375,
+        -0.047607421875
+      ]
+    },
+    {
+      "text_id": "en/fineweb/<urn:uuid:69cb3811-68da-4907-86ee-2319629b182d>/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.060617699065288244,
+      "scaled_score": 0.060526880291728105,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.0693359375
+      ]
+    },
+    {
+      "text_id": "en/fineweb/<urn:uuid:7196a39b-9d00-47a4-9d03-1f3406a6dccd>/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.06060878037656229,
+      "scaled_score": 0.06051796040745166,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1171875,
+        -0.03759765625
+      ]
+    },
+    {
+      "text_id": "en/fineweb/<urn:uuid:8aa0e7f9-2b68-4738-b7b8-68cc432ccf74>/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.060856727456365854,
+      "scaled_score": 0.06076594072456862,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.09375,
+        -0.052490234375
+      ]
+    },
+    {
+      "text_id": "en/fineweb/<urn:uuid:98d87378-d79f-4ba2-a8fc-2a4c5231bb98>/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.061105070382825775,
+      "scaled_score": 0.061014316941405196,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.109375,
+        -0.0419921875
+      ]
+    },
+    {
+      "text_id": "en/fineweb/<urn:uuid:bdad0787-1709-4ae2-aec2-38871016a705>/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.06076891386555474,
+      "scaled_score": 0.060678115362343056,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1015625,
+        -0.04931640625
+      ]
+    },
+    {
+      "text_id": "en/gutenberg/1996/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.06024221622071508,
+      "scaled_score": 0.0601513471136685,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.109375,
+        -0.056884765625
+      ]
+    },
+    {
+      "text_id": "en/gutenberg/2297/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.06004301535408915,
+      "scaled_score": 0.0599521195441605,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.09375,
+        -0.05029296875
+      ]
+    },
+    {
+      "text_id": "en/gutenberg/3278/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.060255532656829675,
+      "scaled_score": 0.06016466533485175,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.109375,
+        -0.052001953125
+      ]
+    },
+    {
+      "text_id": "en/reddit-l2/AskEurope/40x2sw/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.060232895806014625,
+      "scaled_score": 0.06014202544956618,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.109375,
+        -0.060302734375
+      ]
+    },
+    {
+      "text_id": "en/stackexchange/3b3bbaac29bee0e6/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.06035913132723794,
+      "scaled_score": 0.060268277892664854,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1015625,
+        -0.049072265625
+      ]
+    },
+    {
+      "text_id": "en/stackexchange/fc1c7ec20ba119b0/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.06076284456132641,
+      "scaled_score": 0.06067204524452432,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1015625,
+        -0.051513671875
+      ]
+    },
+    {
+      "text_id": "en/wikinews-en/40533/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.06025686439602454,
+      "scaled_score": 0.06016599725256629,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.109375,
+        -0.051513671875
+      ]
+    },
+    {
+      "text_id": "en/wikinews-en/88640/human_written",
+      "language": "en",
+      "text_type": "human_written",
+      "score": 0.061517692579040974,
+      "scaled_score": 0.06142699444963802,
+      "prediction": 0,
+      "logits": [
+        -1.859375,
+        -1.109375,
+        -0.042724609375
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0530196/ai_edited/google_gemma-4-31b-it/persona_casual/ja-copyedit-18",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.05962347670641873,
+      "scaled_score": 0.05953252465732192,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.125,
+        -0.0654296875
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0612148/ai_edited/google_gemini-3.5-flash/plain/ja-simplify-9",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.05913214700297306,
+      "scaled_score": 0.059041129091114954,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.1328125,
+        -0.0634765625
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0869814/ai_edited/google_gemini-3.1-flash-lite/plain/ja-rewrite-9",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.05953776347877643,
+      "scaled_score": 0.05944679993981892,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1640625,
+        -0.07470703125
+      ]
+    },
+    {
+      "text_id": "ja/aozora/000022#p0/ai_edited/google_gemma-4-31b-it/plain/ja-tone-18",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.06024167970641767,
+      "scaled_score": 0.06015081052745133,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.140625,
+        -0.06787109375
+      ]
+    },
+    {
+      "text_id": "ja/aozora/003524#p0/ai_edited/qwen_qwen3.7-plus/persona_casual/ja-condense-9",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.0587285704136729,
+      "scaled_score": 0.05863749840236104,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.296875,
+        -0.1103515625
+      ]
+    },
+    {
+      "text_id": "ja/aozora/051155#p0/ai_edited/deepseek_deepseek-v4-pro/plain/ja-tone-18",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.05956743312623675,
+      "scaled_score": 0.05947647356449636,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.2265625,
+        -0.0927734375
+      ]
+    },
+    {
+      "text_id": "ja/aozora/056574#p1/ai_edited/qwen_qwen3.7-plus/persona_concise",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.059542870871064246,
+      "scaled_score": 0.05945190801675282,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1640625,
+        -0.07275390625
+      ]
+    },
+    {
+      "text_id": "ja/open2ch/15901/ai_edited/moonshotai_kimi-k2.6/plain",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.06027218056045802,
+      "scaled_score": 0.06018131547013207,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.109375,
+        -0.0458984375
+      ]
+    },
+    {
+      "text_id": "ja/open2ch/29144/ai_edited/google_gemma-4-31b-it/humanizer",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.059712174806601896,
+      "scaled_score": 0.059621234647488044,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.1171875,
+        -0.0673828125
+      ]
+    },
+    {
+      "text_id": "ja/open2ch/29144/ai_edited/qwen_qwen3.7-plus/humanizer/ja-polish-9",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.058943478461257366,
+      "scaled_score": 0.05885243525837565,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.1484375,
+        -0.06494140625
+      ]
+    },
+    {
+      "text_id": "ja/open2ch/41704/ai_edited/openai_gpt-5.5/plain/ja-restructure-9",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.059722690424274534,
+      "scaled_score": 0.05963175167477955,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.1171875,
+        -0.0634765625
+      ]
+    },
+    {
+      "text_id": "ja/wiki40b-ja/Q11123749@121658263800125249/ai_edited/openai_gpt-5.5/plain",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.05938724830915467,
+      "scaled_score": 0.05929626459363421,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.109375,
+        -0.07275390625
+      ]
+    },
+    {
+      "text_id": "ja/wiki40b-ja/Q11352412@14223854109016614069/ai_edited/moonshotai_kimi-k2.6/plain/ja-rewrite-18",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.060078700336333696,
+      "scaled_score": 0.05998780930997797,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.125,
+        -0.047119140625
+      ]
+    },
+    {
+      "text_id": "ja/wiki40b-ja/Q1505@15196179461188272281/ai_edited/anthropic_claude-sonnet-4.6/plain",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.44682074937195276,
+      "scaled_score": 0.44678170112873,
+      "prediction": 2,
+      "logits": [
+        0.33984375,
+        3.4375,
+        -0.6796875
+      ]
+    },
+    {
+      "text_id": "ja/wiki40b-ja/Q8261378@1114366756945806904/ai_edited/google_gemini-3.1-flash-lite/plain/ja-rewrite-18",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.060671318797214525,
+      "scaled_score": 0.060580507211381036,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.0498046875
+      ]
+    },
+    {
+      "text_id": "ja/wikinews-ja/11713@51874/ai_edited/deepseek_deepseek-v4-pro/plain/ja-tone-18",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.05795383620089083,
+      "scaled_score": 0.057862660336434786,
+      "prediction": 0,
+      "logits": [
+        -1.9140625,
+        -1.1640625,
+        -0.06982421875
+      ]
+    },
+    {
+      "text_id": "ja/wikinews-ja/14686@67873/ai_edited/google_gemma-4-31b-it/plain/ja-paraphrase-18",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.05550834500350447,
+      "scaled_score": 0.05541684132088095,
+      "prediction": 0,
+      "logits": [
+        -1.90625,
+        -1.4375,
+        -0.0213623046875
+      ]
+    },
+    {
+      "text_id": "ja/wikinews-ja/25533@126872/ai_edited/google_gemma-4-31b-it/humanizer/ja-simplify-9",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.06141094339104009,
+      "scaled_score": 0.06132023095190532,
+      "prediction": 0,
+      "logits": [
+        -1.859375,
+        -1.1171875,
+        -0.046142578125
+      ]
+    },
+    {
+      "text_id": "ja/wikinews-ja/29224@155259/ai_edited/google_gemma-4-31b-it/humanizer",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.05925905186866486,
+      "scaled_score": 0.05916805096840776,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.15625,
+        -0.0625
+      ]
+    },
+    {
+      "text_id": "ja/wikinews-ja/3448@137475/ai_edited/inclusionai_ling-2.6-flash/plain/ja-simplify-9",
+      "language": "ja",
+      "text_type": "ai_edited",
+      "score": 0.06011556219823918,
+      "scaled_score": 0.060024676113217136,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.125,
+        -0.033447265625
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0063954/ai_generated/google_gemini-3.5-flash/persona_casual",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.05891160816854732,
+      "scaled_score": 0.058820560693451915,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.1484375,
+        -0.0771484375
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0254628/ai_generated/google_gemini-3.5-flash/humanizer",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.0597187469106156,
+      "scaled_score": 0.05962780763249249,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.1171875,
+        -0.06494140625
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0666187/ai_generated/deepseek_deepseek-v4-pro/humanizer",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.05753306974823961,
+      "scaled_score": 0.05744183748002812,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.265625,
+        -0.09521484375
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0951071/ai_generated/google_gemini-3.1-pro-preview/plain",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.0598269884536925,
+      "scaled_score": 0.05973606368535144,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.140625,
+        -0.07080078125
+      ]
+    },
+    {
+      "text_id": "ja/aozora/000233#p2/ai_generated/qwen_qwen3.7-plus/humanizer",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.05660832198322054,
+      "scaled_score": 0.056516965752543745,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.484375,
+        -0.185546875
+      ]
+    },
+    {
+      "text_id": "ja/aozora/003048#p0/ai_generated/x-ai_grok-4.3/plain",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.04528024443741085,
+      "scaled_score": 0.04518736967760337,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -4.65625,
+        0.265625
+      ]
+    },
+    {
+      "text_id": "ja/aozora/003231#p0/ai_generated/deepseek_deepseek-v4-pro/plain",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.05717102756602313,
+      "scaled_score": 0.05707974676604639,
+      "prediction": 0,
+      "logits": [
+        -1.90625,
+        -1.265625,
+        -0.08349609375
+      ]
+    },
+    {
+      "text_id": "ja/aozora/056773#p1/ai_generated/qwen_qwen3.7-plus/humanizer",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.05963719849681304,
+      "scaled_score": 0.05954624828712264,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.125,
+        -0.060302734375
+      ]
+    },
+    {
+      "text_id": "ja/open2ch/11100/ai_generated/google_gemini-3-flash-preview/humanizer",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.061682034140612844,
+      "scaled_score": 0.06159135804120109,
+      "prediction": 0,
+      "logits": [
+        -1.8515625,
+        -1.1328125,
+        -0.0281982421875
+      ]
+    },
+    {
+      "text_id": "ja/open2ch/18691/ai_generated/moonshotai_kimi-k2.6/plain",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.059470268650994085,
+      "scaled_score": 0.05937929606435291,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.140625,
+        -0.052734375
+      ]
+    },
+    {
+      "text_id": "ja/open2ch/23166/ai_generated/openai_gpt-5.5/plain",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.05746196554272857,
+      "scaled_score": 0.05737072374299622,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.3046875,
+        -0.1103515625
+      ]
+    },
+    {
+      "text_id": "ja/open2ch/45693/ai_generated/qwen_qwen3.7-plus/persona_casual",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.058537801984285986,
+      "scaled_score": 0.05844670440046051,
+      "prediction": 0,
+      "logits": [
+        -1.90625,
+        -1.1484375,
+        -0.0673828125
+      ]
+    },
+    {
+      "text_id": "ja/wiki40b-ja/Q11123749@121658263800125249/ai_generated/openai_gpt-5.5/plain",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.059425064742410626,
+      "scaled_score": 0.059334086096184166,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.140625,
+        -0.06982421875
+      ]
+    },
+    {
+      "text_id": "ja/wiki40b-ja/Q11352412@14223854109016614069/ai_generated/moonshotai_kimi-k2.6/plain",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.05943410357848053,
+      "scaled_score": 0.05934312614391031,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.140625,
+        -0.06640625
+      ]
+    },
+    {
+      "text_id": "ja/wiki40b-ja/Q225604@18074677179262621528/ai_generated/anthropic_claude-sonnet-4.6/plain",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.06005773858614705,
+      "scaled_score": 0.05996684474986808,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.09375,
+        -0.044921875
+      ]
+    },
+    {
+      "text_id": "ja/wiki40b-ja/Q856039@17072279298229865004/ai_generated/deepseek_deepseek-v4-pro/plain",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.059489634972684724,
+      "scaled_score": 0.059398664982099544,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.1328125,
+        -0.08056640625
+      ]
+    },
+    {
+      "text_id": "ja/wikinews-ja/14896@67717/ai_generated/google_gemini-3-flash-preview/plain",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.06142310551551652,
+      "scaled_score": 0.06133239470671489,
+      "prediction": 0,
+      "logits": [
+        -1.859375,
+        -1.1171875,
+        -0.041748046875
+      ]
+    },
+    {
+      "text_id": "ja/wikinews-ja/29218@149108/ai_generated/x-ai_grok-4.3/plain",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.06145407950155466,
+      "scaled_score": 0.061363372844816785,
+      "prediction": 0,
+      "logits": [
+        -1.8515625,
+        -1.15625,
+        -0.00531005859375
+      ]
+    },
+    {
+      "text_id": "ja/wikinews-ja/7212@32680/ai_generated/x-ai_grok-4.3/persona_concise",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.06001488039503013,
+      "scaled_score": 0.05992398081360938,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.125,
+        -0.07080078125
+      ]
+    },
+    {
+      "text_id": "ja/wikinews-ja/8756@162924/ai_generated/google_gemini-3.5-flash/persona_concise",
+      "language": "ja",
+      "text_type": "ai_generated",
+      "score": 0.06024554516261001,
+      "scaled_score": 0.06015467650180819,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.109375,
+        -0.0556640625
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0042118/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.059021171996663624,
+      "scaled_score": 0.05893013920860263,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.203125,
+        -0.09814453125
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0235842/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.05952210059440043,
+      "scaled_score": 0.059431134955832805,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.1328125,
+        -0.068359375
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0396169/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.0601160062810811,
+      "scaled_score": 0.06002512025558837,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1171875,
+        -0.068359375
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0692389/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.059701660572242576,
+      "scaled_score": 0.0596107190036953,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.1171875,
+        -0.0712890625
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0805881/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.05736145080274945,
+      "scaled_score": 0.05727019552901323,
+      "prediction": 0,
+      "logits": [
+        -1.9140625,
+        -1.2265625,
+        -0.022216796875
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0916693/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.05817283330596743,
+      "scaled_score": 0.05808168679807981,
+      "prediction": 0,
+      "logits": [
+        -1.90625,
+        -1.1796875,
+        -0.068359375
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0934259/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.05944314344002339,
+      "scaled_score": 0.05935216721724688,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.140625,
+        -0.06298828125
+      ]
+    },
+    {
+      "text_id": "ja/amazon-reviews-ja/ja_0984574/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.060319618745195036,
+      "scaled_score": 0.06022876001395915,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1015625,
+        -0.0634765625
+      ]
+    },
+    {
+      "text_id": "ja/aozora/000059#p1/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.05972663412121652,
+      "scaled_score": 0.05963569590037422,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.1171875,
+        -0.06201171875
+      ]
+    },
+    {
+      "text_id": "ja/aozora/000647#p0/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.05792836089936246,
+      "scaled_score": 0.05783718161994149,
+      "prediction": 0,
+      "logits": [
+        -1.921875,
+        -1.1328125,
+        -0.06689453125
+      ]
+    },
+    {
+      "text_id": "ja/aozora/043366#p0/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.058933278480085144,
+      "scaled_score": 0.058842233909895646,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.1484375,
+        -0.06884765625
+      ]
+    },
+    {
+      "text_id": "ja/aozora/051215#p2/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.31007382707249914,
+      "scaled_score": 0.31001644790029015,
+      "prediction": 2,
+      "logits": [
+        0.058837890625,
+        0.50390625,
+        -0.87109375
+      ]
+    },
+    {
+      "text_id": "ja/aozora/057477#p2/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.06001619579159845,
+      "scaled_score": 0.05992529638650665,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.125,
+        -0.0703125
+      ]
+    },
+    {
+      "text_id": "ja/open2ch/50248/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.061017820808262874,
+      "scaled_score": 0.060927055671034236,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.1171875,
+        -0.03857421875
+      ]
+    },
+    {
+      "text_id": "ja/wiki40b-ja/Q11256809@2336021586422395276/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.059285842716779086,
+      "scaled_score": 0.05919484540783596,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.1171875,
+        -0.07568359375
+      ]
+    },
+    {
+      "text_id": "ja/wiki40b-ja/Q11527047@8038370457425657480/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.21484133642079642,
+      "scaled_score": 0.21477119133039366,
+      "prediction": 2,
+      "logits": [
+        0.1982421875,
+        -2.15625,
+        0.703125
+      ]
+    },
+    {
+      "text_id": "ja/wiki40b-ja/Q5339799@1195871286267070510/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.06050911892331388,
+      "scaled_score": 0.06041828559458249,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.125,
+        -0.0390625
+      ]
+    },
+    {
+      "text_id": "ja/wikinews-ja/2449@163866/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.060319618745195036,
+      "scaled_score": 0.06022876001395915,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1015625,
+        -0.0634765625
+      ]
+    },
+    {
+      "text_id": "ja/wikinews-ja/3067@33635/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.06024113180909373,
+      "scaled_score": 0.060150262556681745,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1171875,
+        -0.022216796875
+      ]
+    },
+    {
+      "text_id": "ja/wikinews-ja/8312@54992/human_written",
+      "language": "ja",
+      "text_type": "human_written",
+      "score": 0.05928290365468227,
+      "scaled_score": 0.05919190595175779,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.125,
+        -0.041748046875
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/Food/M.1420441315.A.934/ai_edited/google_gemini-3.1-flash-lite/plain/zhtw-polish-18",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.060349084269538035,
+      "scaled_score": 0.06025822948815657,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1015625,
+        -0.052734375
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/Food/M.1420441315.A.934/ai_edited/x-ai_grok-4.3/plain",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.060027625013266785,
+      "scaled_score": 0.059936727140262484,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.09375,
+        -0.055908203125
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/Gossiping/M.1428802481.A.06C/ai_edited/x-ai_grok-4.3/plain/zhtw-condense-9",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.06078577472357164,
+      "scaled_score": 0.06069497848055847,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1015625,
+        -0.043212890625
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/Gossiping/M.1435560977.A.2FD/ai_edited/google_gemini-3.1-flash-lite/humanizer/zhtw-polish-18",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.05892855707856485,
+      "scaled_score": 0.058837511875471336,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.171875,
+        0.0361328125
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/MobileComm/M.1439327379.A.590/ai_edited/openai_gpt-5.5/plain/zhtw-condense-18",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.05637515028980077,
+      "scaled_score": 0.056283762802451565,
+      "prediction": 0,
+      "logits": [
+        -1.9296875,
+        -1.2265625,
+        -0.10986328125
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/03116534406506F8/ai_edited/google_gemini-3.1-flash-lite/humanizer/zhtw-condense-9",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.05936353244773083,
+      "scaled_score": 0.059272545553098445,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.1171875,
+        -0.046630859375
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/654E1E2F8BEEB2A5/ai_edited/google_gemini-3.1-flash-lite/plain/zhtw-tone-18",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.061163396360799906,
+      "scaled_score": 0.0610726507379784,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.1015625,
+        -0.055908203125
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/6CAA8C748E9FE806/ai_edited/google_gemini-3-flash-preview/plain",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.06018285623224796,
+      "scaled_score": 0.060091979167993165,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1171875,
+        -0.043701171875
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/7BA2F6664C6E93FD/ai_edited/x-ai_grok-4.3/humanizer/zhtw-copyedit-18",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.06111317190141235,
+      "scaled_score": 0.06102241954600057,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.109375,
+        -0.0390625
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/95AF5A6A32BC4243/ai_edited/anthropic_claude-sonnet-4.6/persona_casual",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.05896981037653728,
+      "scaled_score": 0.05887877070344958,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.1640625,
+        0.0162353515625
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/97B4AF5A8182A72C/ai_edited/openai_gpt-5.5/plain/zhtw-expand-18",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.06033568971290395,
+      "scaled_score": 0.060244833135981765,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1015625,
+        -0.0576171875
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/ED86166C0962DC06/ai_edited/google_gemini-3.1-flash-lite/plain/zhtw-polish-9",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.055892028804887556,
+      "scaled_score": 0.05580057655508898,
+      "prediction": 0,
+      "logits": [
+        -1.765625,
+        -2.25,
+        0.2001953125
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/F1755CBA3F008887/ai_edited/openai_gpt-5.5/persona_casual/zhtw-improve-9",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.05918891011650145,
+      "scaled_score": 0.05909789981374039,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.140625,
+        -0.00665283203125
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q10920628@1733014735992472106/ai_edited/google_gemini-3.1-flash-lite/humanizer/zhtw-simplify-9",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.06026885078329399,
+      "scaled_score": 0.06017798524661131,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.109375,
+        -0.047119140625
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q11175573@7527501126085158793/ai_edited/openai_gpt-5.5/plain",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.06068472820399345,
+      "scaled_score": 0.06059391841569134,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.044921875
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q15938232@8225594598656512480/ai_edited/openai_gpt-5.5/plain",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.06046319986670896,
+      "scaled_score": 0.06037236038252667,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.09375,
+        -0.046142578125
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q3135322@3007158400935095003/ai_edited/google_gemini-3.5-flash/plain",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.06094686184992742,
+      "scaled_score": 0.060856087200648314,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.0859375,
+        -0.054931640625
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q5557386@7813105744843707983/ai_edited/x-ai_grok-4.3/humanizer/zhtw-condense-9",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.010398982568936116,
+      "scaled_score": 0.010301431974941586,
+      "prediction": 0,
+      "logits": [
+        -3.609375,
+        -2.1875,
+        1.5234375
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q63246380@4247140001596512483/ai_edited/google_gemini-3.5-flash/plain/zhtw-polish-18",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.05887745538743947,
+      "scaled_score": 0.05878640333416275,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.2109375,
+        0.039306640625
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q9440216@16728039091965162725/ai_edited/google_gemini-3.1-flash-lite/humanizer/zhtw-improve-9",
+      "language": "zh-tw",
+      "text_type": "ai_edited",
+      "score": 0.05679491248495808,
+      "scaled_score": 0.05670358126674357,
+      "prediction": 0,
+      "logits": [
+        -1.9296875,
+        -1.203125,
+        -0.043212890625
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/Food/M.1420895515.A.9E3/ai_generated/google_gemini-3.1-pro-preview/plain",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.060266852962793584,
+      "scaled_score": 0.06017598715830301,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.109375,
+        -0.0478515625
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/Food/M.1421154130.A.5FB/ai_generated/google_gemini-3.5-flash/humanizer",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.059996058899622846,
+      "scaled_score": 0.05990515679518008,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.1953125,
+        -0.06787109375
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/Gossiping/M.1422859419.A.77E/ai_generated/openai_gpt-5.5/plain",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.06035511239207678,
+      "scaled_score": 0.06026425841876532,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1015625,
+        -0.050537109375
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/Gossiping/M.1437879184.A.D66/ai_generated/google_gemini-3-flash-preview/humanizer",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.05955187665430697,
+      "scaled_score": 0.05946091500722106,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.1015625,
+        -0.046630859375
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/MobileComm/M.1453038539.A.D59/ai_generated/openai_gpt-5.5/persona_casual",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.060441639773477294,
+      "scaled_score": 0.06035079739916387,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.09375,
+        -0.053955078125
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/eWriter/M.1464910424.A.6EE/ai_generated/openai_gpt-5.5/plain",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.16972200510911117,
+      "scaled_score": 0.16964581177100913,
+      "prediction": 2,
+      "logits": [
+        0.0206298828125,
+        -5.40625,
+        1.2421875
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/marvel/M.1421115757.A.F60/ai_generated/anthropic_claude-sonnet-4.6/persona_concise",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.060666625881776515,
+      "scaled_score": 0.060575813666857575,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.051513671875
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/marvel/M.1421471343.A.EF3/ai_generated/x-ai_grok-4.3/plain",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.05975423202652391,
+      "scaled_score": 0.059663297505181644,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.140625,
+        -0.09814453125
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/marvel/M.1423912272.A.723/ai_generated/anthropic_claude-sonnet-4.6/plain",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.05873749485729812,
+      "scaled_score": 0.05864642404230819,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.1640625,
+        -0.07373046875
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/marvel/M.1424506448.A.E5C/ai_generated/x-ai_grok-4.3/plain",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.24779294084237288,
+      "scaled_score": 0.24772721291551925,
+      "prediction": 2,
+      "logits": [
+        -0.6640625,
+        1.203125,
+        0.1767578125
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/1DE2FC8B98FFCE99/ai_generated/anthropic_claude-sonnet-4.6/plain",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.05980515026904016,
+      "scaled_score": 0.05971422257328981,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.109375,
+        -0.06787109375
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/2674D7667402C4F1/ai_generated/google_gemini-3.1-pro-preview/persona_concise",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.06059078126160856,
+      "scaled_score": 0.060499958879716036,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1171875,
+        -0.044189453125
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/271BB30CB6D0619F/ai_generated/x-ai_grok-4.3/persona_casual",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.06067400055327133,
+      "scaled_score": 0.06058318932692732,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.048828125
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/654E1E2F8BEEB2A5/ai_generated/google_gemini-3-flash-preview/plain",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.059218222058761434,
+      "scaled_score": 0.059127215685267104,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.15625,
+        -0.078125
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/91870AE84A5283A7/ai_generated/x-ai_grok-4.3/persona_casual",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.06129710834420876,
+      "scaled_score": 0.061206380645482596,
+      "prediction": 0,
+      "logits": [
+        -1.859375,
+        -1.1328125,
+        -0.01708984375
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/97B4AF5A8182A72C/ai_generated/openai_gpt-5.5/plain",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.06027551043088797,
+      "scaled_score": 0.06018464578693125,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.109375,
+        -0.044677734375
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/F05CDD74EE5984C1/ai_generated/google_gemini-3.5-flash/plain",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.07781856982270884,
+      "scaled_score": 0.07773005682638341,
+      "prediction": 2,
+      "logits": [
+        -1.1953125,
+        -5.5625,
+        -0.8984375
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q11138626@10635914253346382812/ai_generated/google_gemini-3.5-flash/humanizer",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.05980356679767798,
+      "scaled_score": 0.059712638889663244,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.1171875,
+        -0.033447265625
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q15938232@8225594598656512480/ai_generated/openai_gpt-5.5/plain",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.06057545073418572,
+      "scaled_score": 0.06048462629723555,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1171875,
+        -0.0498046875
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q2032400@4111639529652884373/ai_generated/google_gemini-3.5-flash/humanizer",
+      "language": "zh-tw",
+      "text_type": "ai_generated",
+      "score": 0.058568833174192765,
+      "scaled_score": 0.05847773975009921,
+      "prediction": 0,
+      "logits": [
+        -1.90625,
+        -1.1484375,
+        -0.055419921875
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/Food/M.1420469432.A.81F/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.06070689016349262,
+      "scaled_score": 0.06061608334600184,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1015625,
+        -0.07177734375
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/Food/M.1420610324.A.106/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.060373198709364424,
+      "scaled_score": 0.06028234716052433,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1015625,
+        -0.0439453125
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/Food/M.1420641662.A.98F/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.061168827300773915,
+      "scaled_score": 0.061078082405970076,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.1015625,
+        -0.053955078125
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/Gossiping/M.1424555099.A.F15/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.06077565792189135,
+      "scaled_score": 0.06068486032272062,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1015625,
+        -0.046875
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/Gossiping/M.1426259034.A.CBE/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.060924837928043284,
+      "scaled_score": 0.060834060326456794,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.125,
+        -0.037353515625
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/MobileComm/M.1436842992.A.AB5/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.06032363621779951,
+      "scaled_score": 0.060232778025105946,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.1015625,
+        -0.06201171875
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/marvel/M.1422939963.A.C66/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.061155711671320105,
+      "scaled_score": 0.061064965018365745,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.109375,
+        -0.023681640625
+      ]
+    },
+    {
+      "text_id": "zh-tw/ptt/marvel/M.1425877899.A.01E/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.06513232164322831,
+      "scaled_score": 0.06504210805495853,
+      "prediction": 0,
+      "logits": [
+        -1.7734375,
+        -1.21875,
+        0.07470703125
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/38B5FF1D6D6C2B4D/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.05850361891145312,
+      "scaled_score": 0.058412516745385716,
+      "prediction": 0,
+      "logits": [
+        -1.90625,
+        -1.1484375,
+        -0.08056640625
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/4F69AC354969141A/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.058057939397656716,
+      "scaled_score": 0.05796677748823728,
+      "prediction": 0,
+      "logits": [
+        -1.8984375,
+        -1.21875,
+        -0.09423828125
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/E02C704FF6508783/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.06107266963811495,
+      "scaled_score": 0.06098191185337358,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.109375,
+        -0.0537109375
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/E5D68F5E4F480F45/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.05974306807129237,
+      "scaled_score": 0.05965213205342157,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.1171875,
+        -0.055908203125
+      ]
+    },
+    {
+      "text_id": "zh-tw/tw-gov/E7DCDB2F581E49D7/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.060778355653584436,
+      "scaled_score": 0.060687558416044715,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.1015625,
+        -0.0458984375
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q11083040@1633607948028390562/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.059882525574473204,
+      "scaled_score": 0.05979160825088484,
+      "prediction": 0,
+      "logits": [
+        -1.890625,
+        -1.1015625,
+        -0.07421875
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q11143691@6058987951905150932/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.06016198021106619,
+      "scaled_score": 0.06007110034838014,
+      "prediction": 0,
+      "logits": [
+        -1.8828125,
+        -1.125,
+        -0.0162353515625
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q122922@9790659240985447550/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.06066930752289129,
+      "scaled_score": 0.06057849566744642,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.050537109375
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q15108796@4466405948901896329/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.06111182161518735,
+      "scaled_score": 0.06102106907876967,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.109375,
+        -0.03955078125
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q4402231@887386982021873081/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.06066997794355731,
+      "scaled_score": 0.06057916617798235,
+      "prediction": 0,
+      "logits": [
+        -1.875,
+        -1.109375,
+        -0.05029296875
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q8273087@2050543450389074532/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.06094585822233357,
+      "scaled_score": 0.06085508343851815,
+      "prediction": 0,
+      "logits": [
+        -1.8671875,
+        -1.125,
+        -0.0296630859375
+      ]
+    },
+    {
+      "text_id": "zh-tw/wiki40b-zh-tw/Q84232@15659620720121701414/human_written",
+      "language": "zh-tw",
+      "text_type": "human_written",
+      "score": 0.061678355811473184,
+      "scaled_score": 0.0615876792189813,
+      "prediction": 0,
+      "logits": [
+        -1.859375,
+        -1.09375,
+        -0.05517578125
+      ]
+    }
+  ]
+}

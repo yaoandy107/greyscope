@@ -1,0 +1,19 @@
+{
+  "benchmark": "raid",
+  "source": "https://dataset.raid-bench.xyz/extra.csv",
+  "loader": "raid-bench==0.2.0",
+  "n": 4968,
+  "source_documents": 207,
+  "base_generations": 414,
+  "conditions": 12,
+  "domains": [
+    "code",
+    "czech",
+    "german"
+  ],
+  "selection": "207 matched source documents, one human and one AI generation per source, retaining clean text and all 11 attacks",
+  "exclusion": "One 24-row source pair was removed because one text encoded to fewer than two Falcon tokens and could not be scored by Binoculars.",
+  "csv_sha256": "c941e4aad4b3cfcec3d402f19872858dc9288576945cb76b4d249d77220d098b",
+  "ids_sha256": "651080a7a9c7684469c326832ccd429b1375ed9cdc9353261942ecee1d6778e8",
+  "texts_sha256": "36c6a94925be27f3f17e027839c5ee86a7150f6aea4dba2e766fe8f0edc8d71c"
+}
