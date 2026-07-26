@@ -1,6 +1,10 @@
 import json
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip("mlx")
+
 import greyscope.mlx_inference as inf
 
 CALIB = json.loads((Path(__file__).parent / "fixtures/calibration.json").read_text())

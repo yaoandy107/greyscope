@@ -1,6 +1,10 @@
 import json
 import importlib.util
 
+import pytest
+
+pytest.importorskip("mlx")
+
 from greyscope.mlx_model import _quantization_for_path, _text_classifier_weight_keys
 from greyscope.mlx_export import stage_model
 
