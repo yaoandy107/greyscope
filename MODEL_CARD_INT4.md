@@ -28,11 +28,8 @@ uv run greyscope --model int4 "Paste a paragraph here."
 
 ## Quantization check
 
-The int4 build agreed with bf16 on 98.4% of predicted buckets in a 64-row NVIDIA L4 release check.
-Validate it on your deployment hardware.
-
-On an M1 Pro, the current torchao MPS path failed the 180-row quality check: 0.173 macro-F1 and
-0.442 AUROC. It also took 16.82 seconds for a 512-token passage.
+The release export checked this artifact against bf16 on 64 rows. Treat this as a smoke test, not a
+quality benchmark, and validate it on your own data and hardware.
 
 Evaluations, calibration, training details, and limitations are documented on the
 [bf16 model card](https://huggingface.co/yaoandy107/greyscope-v2-qwen3.5-4b).

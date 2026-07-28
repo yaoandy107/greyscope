@@ -1,7 +1,0 @@
-{
-  "original_rows": 4992,
-  "invalid_rows": 1,
-  "removed_source_documents": 1,
-  "compatible_rows": 4968,
-  "policy": "remove every 24-row matched source pair containing a text below two Falcon tokens"
-}

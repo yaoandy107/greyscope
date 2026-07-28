@@ -39,76 +39,75 @@ result = detect("Paste a paragraph here.")
 
 Use `--mode binary` for a human/AI label. Treat labels as signals, not proof.
 
-## Models
+## Which build should I use?
 
-| Model | Size | Use |
+| Build | Size | Use |
 |---|---:|---|
-| `greyscope-v2-qwen3.5-4b` | 8.4 GB | Reference bf16 model |
-| `greyscope-v2-qwen3.5-4b-mlx-4bit` | 2.4 GB | Recommended on Apple Silicon |
-| `greyscope-v2-qwen3.5-4b-int4` | 3.5 GB | Lower-memory Transformers build |
-| `greyscope-qwen3.5-4b` | — | Previous English-only v1 |
+| `greyscope-v2-qwen3.5-4b` | 8.4 GB | NVIDIA GPU or CPU |
+| `greyscope-v2-qwen3.5-4b-mlx-4bit` | 2.4 GB | Apple Silicon |
+| `greyscope-v2-qwen3.5-4b-int4` | 3.5 GB | NVIDIA GPU when bf16 does not fit |
 
 `greyscope` automatically uses MLX Q4 on Apple Silicon when the Mac dependencies are installed.
-Elsewhere it uses bf16. Pass `--model bf16` or `--model int4` to override it.
+Elsewhere it uses bf16. On NVIDIA, pass `--model int4` when memory is limited.
 
 ## Evaluations
 
+### Graded AI involvement
+
+#### APT-Eval
+
 APT-Eval measures whether the score tracks AI editing amount. Results use 3,000 of 14,950 rows: all
-300 human passages and a stratified sample of 2,700 polished passages.
+300 human passages and a stratified sample of 2,700 polished passages. Spearman: higher is better.
 
 | Model | Spearman |
 |---|---:|
 | **Greyscope v2** | 0.636 |
-| [Greyscope v1](https://huggingface.co/yaoandy107/greyscope-qwen3.5-4b) | **0.645** |
+| [Greyscope v1 (previous release)](https://huggingface.co/yaoandy107/greyscope-qwen3.5-4b) | **0.645** |
 | [EditLens Llama-3.2-3B](https://huggingface.co/pangram/editlens_Llama-3.2-3B) | 0.601 |
-| [MELD](https://huggingface.co/anon-review-meld-2026/meld) | — |
-| Desklib v1.01 | — |
 
-MELD and Desklib were not evaluated on APT-Eval.
+### Binary AI detection
+
+These evaluations compare human and AI text, so binary-only detectors can be included.
+
+#### Beemo
 
 Beemo results use a 2,997-row sample from the larger dataset: 333 source documents with all nine
-variants.
+variants. AUROC: higher is better.
 
 | Model | AUROC |
 |---|---:|
 | **Greyscope v2** | 0.819 |
-| [Greyscope v1](https://huggingface.co/yaoandy107/greyscope-qwen3.5-4b) | **0.840** |
-| [MELD](https://huggingface.co/anon-review-meld-2026/meld) | 0.827 |
+| [Greyscope v1 (previous release)](https://huggingface.co/yaoandy107/greyscope-qwen3.5-4b) | **0.840** |
+| [MELD](https://huggingface.co/anon-review-meld-2026/meld/tree/3383dc2f02abacb45a7dd28568e82e0836ec740e) | 0.827 |
 | [EditLens Llama-3.2-3B](https://huggingface.co/pangram/editlens_Llama-3.2-3B) | 0.817 |
-| Desklib v1.01 | 0.801 |
+| [Desklib v1.01](https://huggingface.co/desklib/ai-text-detector-v1.01) | 0.801 |
+
+#### RAID extra
 
 RAID `extra` is an out-of-domain robustness check using 4,968 rows of code, Czech, and German with
-all 11 attacks.
+all 11 attacks. Higher is better for both metrics. MELD and Desklib are excluded because they
+trained on RAID.
 
 | Model | AUROC | TPR @ 1% FPR |
 |---|---:|---:|
 | **Greyscope v2** | **0.771** | 0.122 |
-| [MELD](https://huggingface.co/anon-review-meld-2026/meld) | (0.866*) | (0.294*) |
 | [Binoculars](https://github.com/ahans30/Binoculars) | 0.769 | **0.295** |
-| [Desklib v1.01](https://huggingface.co/desklib/ai-text-detector-v1.01) | (0.752*) | (0.229*) |
-| [Greyscope v1](https://huggingface.co/yaoandy107/greyscope-qwen3.5-4b) | 0.720 | 0.130 |
+| [Greyscope v1 (previous release)](https://huggingface.co/yaoandy107/greyscope-qwen3.5-4b) | 0.720 | 0.130 |
 | [EditLens Llama-3.2-3B](https://huggingface.co/pangram/editlens_Llama-3.2-3B) | 0.713 | 0.266 |
 
-*MELD and Desklib trained on RAID.
-
-Choose v2 for graded scores under Apache-2.0, Apple Silicon support, or Japanese and Traditional
-Chinese. For English-only binary detection, compare MELD on your data. V1 remains slightly stronger
-on APT-Eval and Beemo here, but its license is non-commercial.
-
-Reproduction details and saved predictions are in [`benchmarks/`](benchmarks/). At v2's bundled
-binary threshold, 13.2% of Beemo human passages were flagged. AUROC does not use that threshold.
-Recalibrate it on your own data.
+Benchmark metadata is in [`benchmarks/`](benchmarks/).
 
 ## Mac performance
 
-Measured on an M1 Pro with 32 GB unified memory. Quality uses a fixed 180-row trilingual sample;
-higher is better.
+Measured on an M1 Pro with 32 GB unified memory.
 
-| Build | Model size | Peak memory | 512 tokens | Macro-F1 | AUROC |
-|---|---:|---:|---:|---:|---:|
-| MLX Q4 | 2.4 GB | 3.0 GB | 2.43 s | 0.842 | 0.961 |
+| Build | Model size | Peak memory | 512 tokens |
+|---|---:|---:|---:|
+| MLX Q4 | 2.4 GB | 3.0 GB | 2.43 s |
+| Transformers bf16 | 8.4 GB | 9.4 GB | 2.54 s |
 
-Raw results are under [`benchmarks/results/`](benchmarks/results/).
+MLX Q4 matched bf16 quality across 3,007 external benchmark rows. See the
+[`release metrics`](benchmarks/results/v2-summary.json) for details.
 
 ## Limitations
 
@@ -119,12 +118,12 @@ Raw results are under [`benchmarks/results/`](benchmarks/results/).
 
 ## Training and license
 
-V2 is a Qwen3.5-4B LoRA with a four-level CORN ordinal head and ranking loss. No EditLens data was
-used for training.
+Greyscope v2 is a Qwen3.5-4B LoRA with a four-level CORN ordinal head and ranking loss. No EditLens
+data was used for training.
 
-Code is MIT and the v2 weights are Apache-2.0. Training inputs come from public sources with
-different upstream terms; the source texts and generated training dataset are not redistributed with
-the weights.
+Code is MIT and the Greyscope v2 weights are Apache-2.0. Training inputs come from public sources
+with different upstream terms; the source texts and generated training dataset are not redistributed
+with the weights.
 
 See [`configs/train.yaml`](configs/train.yaml) for the recipe and `greyscope/pipeline/` for the data
 build.

@@ -50,6 +50,8 @@ def main() -> None:
             output = model(mx.array([tokens]))
             mx.eval(output)
             row_logits = [float(value) for value in output[0].tolist()]
+            del output
+            mx.clear_cache()
             with checkpoint_path.open("a") as checkpoint:
                 checkpoint.write(json.dumps({"text_id": row["text_id"], "logits": row_logits}) + "\n")
         logits.append(row_logits)

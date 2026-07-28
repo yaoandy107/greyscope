@@ -1,0 +1,183 @@
+{
+  "release": "greyscope-v2",
+  "cutoff": "2026-07-24",
+  "provenance": {
+    "models": "../../configs/release_eval.json",
+    "datasets": "../manifests/"
+  },
+  "evaluations": {
+    "apt_eval": {
+      "rows": 3000,
+      "selection": "all 300 human rows and 2700 stratified polished rows",
+      "metric": "spearman",
+      "higher_is_better": true,
+      "scores": [
+        {
+          "model": "greyscope-v2-bf16",
+          "value": 0.636,
+          "ci95": [0.610, 0.665]
+        },
+        {
+          "model": "greyscope-v1-bf16",
+          "value": 0.645,
+          "ci95": [0.619, 0.674]
+        },
+        {
+          "model": "editlens-llama-3.2-3b",
+          "value": 0.601,
+          "ci95": [0.571, 0.628]
+        }
+      ]
+    },
+    "beemo": {
+      "rows": 2997,
+      "selection": "333 source documents with all nine variants",
+      "higher_is_better": true,
+      "scores": [
+        {
+          "model": "greyscope-v2-bf16",
+          "auroc": 0.819,
+          "auroc_ci95": [0.794, 0.844],
+          "tpr_at_1pct_fpr": 0.063,
+          "tpr_at_1pct_fpr_ci95": [0.020, 0.221]
+        },
+        {
+          "model": "greyscope-v1-bf16",
+          "auroc": 0.840,
+          "auroc_ci95": [0.817, 0.863],
+          "tpr_at_1pct_fpr": 0.042,
+          "tpr_at_1pct_fpr_ci95": [0.018, 0.262]
+        },
+        {
+          "model": "meld",
+          "auroc": 0.827,
+          "auroc_ci95": [0.803, 0.847],
+          "tpr_at_1pct_fpr": 0.058,
+          "tpr_at_1pct_fpr_ci95": [0.000, 0.333]
+        },
+        {
+          "model": "editlens-llama-3.2-3b",
+          "auroc": 0.817,
+          "auroc_ci95": [0.792, 0.844],
+          "tpr_at_1pct_fpr": 0.042,
+          "tpr_at_1pct_fpr_ci95": [0.024, 0.171]
+        },
+        {
+          "model": "desklib-v1.01",
+          "auroc": 0.801,
+          "auroc_ci95": [0.777, 0.826],
+          "tpr_at_1pct_fpr": 0.113,
+          "tpr_at_1pct_fpr_ci95": [0.005, 0.260]
+        }
+      ],
+      "greyscope_v2_shipped_threshold": {
+        "fpr": 0.132,
+        "fpr_ci95": [0.096, 0.171],
+        "tpr": 0.553,
+        "tpr_ci95": [0.512, 0.593]
+      }
+    },
+    "raid_extra": {
+      "rows": 4968,
+      "selection": "207 matched sources from code, Czech, and German with all 11 attacks",
+      "higher_is_better": true,
+      "scores": [
+        {
+          "model": "greyscope-v2-bf16",
+          "auroc": 0.771,
+          "auroc_ci95": [0.733, 0.804],
+          "tpr_at_1pct_fpr": 0.122,
+          "tpr_at_1pct_fpr_ci95": [0.085, 0.234]
+        },
+        {
+          "model": "meld",
+          "trained_on_raid": true,
+          "auroc": 0.866,
+          "auroc_ci95": [0.840, 0.891],
+          "tpr_at_1pct_fpr": 0.294,
+          "tpr_at_1pct_fpr_ci95": [0.253, 0.428]
+        },
+        {
+          "model": "binoculars",
+          "auroc": 0.769,
+          "auroc_ci95": [0.734, 0.803],
+          "tpr_at_1pct_fpr": 0.295,
+          "tpr_at_1pct_fpr_ci95": [0.190, 0.349]
+        },
+        {
+          "model": "desklib-v1.01",
+          "trained_on_raid": true,
+          "auroc": 0.752,
+          "auroc_ci95": [0.717, 0.785],
+          "tpr_at_1pct_fpr": 0.229,
+          "tpr_at_1pct_fpr_ci95": [0.184, 0.298]
+        },
+        {
+          "model": "greyscope-v1-bf16",
+          "auroc": 0.720,
+          "auroc_ci95": [0.682, 0.755],
+          "tpr_at_1pct_fpr": 0.130,
+          "tpr_at_1pct_fpr_ci95": [0.096, 0.167]
+        },
+        {
+          "model": "editlens-llama-3.2-3b",
+          "auroc": 0.713,
+          "auroc_ci95": [0.673, 0.751],
+          "tpr_at_1pct_fpr": 0.266,
+          "tpr_at_1pct_fpr_ci95": [0.219, 0.316]
+        }
+      ]
+    }
+  },
+  "mac_m1_pro_32gb": {
+    "runtime": [
+      {
+        "build": "mlx-q4",
+        "model_size_gb": 2.4,
+        "peak_memory_gb": 3.0,
+        "load_seconds": 2.0,
+        "seconds_at_512_tokens": 2.43
+      },
+      {
+        "build": "transformers-bf16",
+        "model_size_gb": 8.4,
+        "peak_memory_gb": 9.4,
+        "load_seconds": 16.4,
+        "seconds_at_512_tokens": 2.54
+      }
+    ],
+    "quality": [
+      {
+        "evaluation": "trilingual-test",
+        "rows": 450,
+        "metric": "macro_f1",
+        "mlx_q4": 0.866,
+        "bf16": 0.837
+      },
+      {
+        "evaluation": "apt-eval",
+        "rows": 1000,
+        "metric": "spearman",
+        "mlx_q4": 0.659,
+        "bf16": 0.663,
+        "mlx_q4_minus_bf16_ci95": [-0.0133, 0.0039]
+      },
+      {
+        "evaluation": "beemo",
+        "rows": 999,
+        "metric": "auroc",
+        "mlx_q4": 0.828,
+        "bf16": 0.820,
+        "mlx_q4_minus_bf16_ci95": [-0.0007, 0.0163]
+      },
+      {
+        "evaluation": "raid-extra",
+        "rows": 1008,
+        "metric": "auroc",
+        "mlx_q4": 0.757,
+        "bf16": 0.770,
+        "mlx_q4_minus_bf16_ci95": [-0.0356, 0.0047]
+      }
+    ]
+  }
+}

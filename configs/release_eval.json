@@ -87,7 +87,7 @@
   "benchmarks": [
     {"id": "editlens", "task": "graded", "languages": ["en"], "tier": "provenance-only"},
     {"id": "apt-eval", "task": "graded", "languages": ["en"], "tier": "release"},
-    {"id": "beemo", "task": "graded", "languages": ["en"], "tier": "release"},
+    {"id": "beemo", "task": "binary", "languages": ["en"], "tier": "release"},
     {"id": "raid", "task": "binary", "languages": ["multilingual"], "tier": "release"}
   ]
 }

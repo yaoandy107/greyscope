@@ -253,7 +253,7 @@ def run_build(langs: list[str], *, assemble_only: bool = False) -> None:
     score.score_edited(kept)
     _print_recommended_cuts(kept)
 
-    # backbone_ai already carries EditLens labels+cosine → bypasses gates/score, straight into assembly
+    # backbone_ai already carries labels and cosine scores, so it bypasses gates and scoring.
     rows = humans + kept + ood + backbone_ai
     print(f"assembling {len(rows)} rows → {assemble.SPLITS_DIR} …")
     counts = assemble.assemble(rows)
