@@ -39,8 +39,8 @@ _DEEPSEEK = [(4, {"enabled": False}), (1, {"effort": "high"})]       # deepseek:
 _GROK = [(30, {"enabled": False}), (30, {"effort": "low"}),
          (25, {"effort": "medium"}), (15, {"effort": "high"})]       # grok-4.3: the one real graded dial
 _GROK45 = [(3, {"effort": "low"}), (2, {"effort": "medium"}), (1, {"effort": "high"})]  # grok-4.5: no off, low floor
-_GPT_LUNA = [(4, {"effort": "minimal"}), (3, {"effort": "low"})]  # cheap GPT: casual bulk (probe: low==medium coarsen)
-_GPT_SOL = [(2, {"effort": "minimal"}), (1, {"effort": "low"})]      # flagship: cheapest settings (mirror-only)
+_GPT_LUNA = [(1, {"effort": "low"})]
+_GPT_SOL = [(1, {"effort": "low"})]
 _HY3 = [(3, {"enabled": False}), (2, {"effort": "low"})]            # tencent: defaults high → send off explicitly
 _NO_REASONING = [(1, None)]                                          # ling: non-reasoning
 
@@ -55,7 +55,7 @@ GENERATORS: list[dict] = [
     {"family": "google", "slug": "google/gemini-3.1-flash-lite", "flex": True, "reasoning": _GEMINI, "weight": {"en": 4, "ja": 5, "zh-tw": 6}},  # cheap flex carrier ($0.25/$1.50)
     {"family": "deepseek", "slug": "deepseek/deepseek-v4-pro", "flex": False, "reasoning": _DEEPSEEK, "weight": {"en": 3, "ja": 4}},  # cheapest family + top real target (promoted from EN wt1)
     {"family": "deepseek", "slug": "deepseek/deepseek-v4-flash", "flex": False, "reasoning": _DEEPSEEK, "weight": {"en": 3}},  # ultra-cheap edit volume ($0.08/$0.15)
-    {"family": "openai", "slug": "openai/gpt-5.6-luna", "flex": True, "reasoning": _GPT_LUNA, "weight": {"en": 3}},  # current cheap GPT; carries GPT-family edits (proxy for Sol)
+    {"family": "openai", "slug": "openai/gpt-6-luna", "flex": True, "reasoning": _GPT_LUNA, "weight": {"en": 3}},  # current cheap GPT; carries GPT-family edits (proxy for Sol)
     {"family": "xai", "slug": "x-ai/grok-4.3", "flex": False, "reasoning": _GROK, "weight": {"en": 3, "ja": 3, "zh-tw": 4}},  # cheap Grok volume
     {"family": "google", "slug": "google/gemini-3.5-flash", "flex": True, "reasoning": _GEMINI, "weight": {"en": 2, "ja": 3, "zh-tw": 3}},
     {"family": "alibaba", "slug": "qwen/qwen3.7-plus", "flex": False, "reasoning": _TOGGLE, "weight": {"en": 2, "ja": 4}},  # mainland: EN-allowed (bias rule is zh-TW-only)
@@ -64,7 +64,7 @@ GENERATORS: list[dict] = [
     {"family": "mistral", "slug": "mistralai/mistral-medium-3.1", "flex": False, "reasoning": _ON_IS_HIGH, "weight": {"en": 1}},  # Western family, EN-only ($0.40/$2)
     {"family": "google-open", "slug": "google/gemma-4-31b-it", "flex": False, "reasoning": _TOGGLE, "weight": {"en": 1, "ja": 4, "zh-tw": 3}},
     # --- premium, MIRROR-ONLY (full-gen carries the realistic flagship voice; edits stay cheap) ---
-    {"family": "openai", "slug": "openai/gpt-5.6-sol", "flex": True, "reasoning": _GPT_SOL, "pools": _MIRROR_ONLY, "weight": {"en": 5}},  # ~15% of the EN mirror pool (budget-first)
+    {"family": "openai", "slug": "openai/gpt-6.1-sol", "flex": True, "reasoning": _GPT_SOL, "pools": _MIRROR_ONLY, "weight": {"en": 5}},  # ~15% of the EN mirror pool (budget-first)
     {"family": "anthropic", "slug": "anthropic/claude-sonnet-5", "flex": False, "reasoning": _TOGGLE_OFF_LEAN, "pools": _MIRROR_ONLY, "weight": {"en": 1, "ja": 3, "zh-tw": 3}},
     {"family": "google", "slug": "google/gemini-3.1-pro-preview", "flex": True, "reasoning": _GEMINI, "pools": _MIRROR_ONLY, "weight": {"en": 1, "ja": 2, "zh-tw": 2}},  # probe: `gemini-pro-latest` alias 400s → use the concrete slug
     # --- ja/zh legacy (EN top-up does not regenerate them; kept for their cached-parity registry) ---

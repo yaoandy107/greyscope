@@ -36,7 +36,7 @@ from greyscope.pipeline.generate import (
 # ATTACK = eval-side, a family OUTSIDE the aug pool so the slice measures transfer.
 AUG_MODELS = [
     {"slug": "google/gemini-3-flash-preview", "flex": True, "reasoning": {"effort": "minimal"}},
-    {"slug": "openai/gpt-5.6-luna", "flex": True, "reasoning": {"effort": "minimal"}},
+    {"slug": "openai/gpt-6-luna", "flex": True, "reasoning": {"effort": "low"}},
     {"slug": "x-ai/grok-4.3", "flex": False, "reasoning": {"enabled": False}},
 ]
 ATTACK_MODELS = [

@@ -38,7 +38,7 @@ def test_mainland_excluded_in_zhtw_allowed_in_en():
     assert "inclusionai/ling-2.6-flash" not in en  # ling stays ja-only
     assert "mistralai/mistral-medium-3.1" in en and "mistralai/mistral-medium-3.1" not in (ja | zhtw)  # EN-only
     # v2.2 current-model refresh: new EN generators present; gpt-5.5 dropped from EN; tencent stays off zh-TW
-    assert {"tencent/hy3", "openai/gpt-5.6-luna", "openai/gpt-5.6-sol", "deepseek/deepseek-v4-flash"} <= en
+    assert {"tencent/hy3", "openai/gpt-6-luna", "openai/gpt-6.1-sol", "deepseek/deepseek-v4-flash"} <= en
     assert "openai/gpt-5.5" not in en and "openai/gpt-5.5" in zhtw
     assert "tencent/hy3" not in zhtw  # tencent = mainland → zh-TW excluded
 
@@ -48,10 +48,10 @@ def test_mirror_edit_pool_decoupling():
     mirror = {g["slug"] for g in gen.generators_for("en", "mirror")}
     edit = {g["slug"] for g in gen.generators_for("en", "edit")}
     # grok-4.5 is mirror-only too (no "off"; its "low" floor burns ~2k reasoning tokens — probe-measured)
-    premium = {"openai/gpt-5.6-sol", "anthropic/claude-sonnet-5",
+    premium = {"openai/gpt-6.1-sol", "anthropic/claude-sonnet-5",
                "google/gemini-3.1-pro-preview", "x-ai/grok-4.5"}
     assert premium <= mirror and not (premium & edit)
-    assert {"tencent/hy3", "deepseek/deepseek-v4-flash", "openai/gpt-5.6-luna"} <= (mirror & edit)
+    assert {"tencent/hy3", "deepseek/deepseek-v4-flash", "openai/gpt-6-luna"} <= (mirror & edit)
 
 
 def test_edit_pool_reasoning_is_cheap_only():
@@ -65,8 +65,8 @@ def test_edit_pool_reasoning_is_cheap_only():
     assert labels("x-ai/grok-4.5", False) == {"low", "medium", "high"}
     assert labels("x-ai/grok-4.5", True) == {"low"}
     assert labels("deepseek/deepseek-v4-pro", True) == {"off"}          # on-is-high → off only
-    assert labels("openai/gpt-5.6-luna", True) <= {"minimal", "low"}    # medium dropped
-    assert labels("openai/gpt-5.6-sol", False) == {"minimal", "low"}
+    assert labels("openai/gpt-6-luna", True) == {"low"}
+    assert labels("openai/gpt-6.1-sol", False) == {"low"}
 
 
 def test_seeded_choice_deterministic_and_varies():
